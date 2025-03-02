@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
@@ -107,127 +106,101 @@ public class Utils {
       }
 
       public static void drawBoxAroundEntity(Entity e, int type, double expand, double shift, int color, boolean damage) {
-         // For living entities, use the existing logic.
          if (e instanceof EntityLivingBase) {
-             double x = e.lastTickPosX + (e.posX - e.lastTickPosX) * mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosX;
-             double y = e.lastTickPosY + (e.posY - e.lastTickPosY) * mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosY;
-             double z = e.lastTickPosZ + (e.posZ - e.lastTickPosZ) * mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosZ;
-             
-             GlStateManager.pushMatrix();
-             if (e instanceof EntityPlayer && damage && ((EntityPlayer) e).hurtTime != 0) {
-                 color = Color.RED.getRGB();
-             }
-             
-             float d = (float) expand / 40.0F;
-             if (type == 3) {
-                 GL11.glTranslated(x, y - 0.2D, z);
-                 GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
-                 GlStateManager.disableDepth();
-                 GL11.glScalef(0.03F + d, 0.03F + d, 0.03F + d);
-                 int outline = Color.black.getRGB();
-                 net.minecraft.client.gui.Gui.drawRect(-20, -1, -26, 75, outline);
-                 net.minecraft.client.gui.Gui.drawRect(20, -1, 26, 75, outline);
-                 net.minecraft.client.gui.Gui.drawRect(-20, -1, 21, 5, outline);
-                 net.minecraft.client.gui.Gui.drawRect(-20, 70, 21, 75, outline);
-                 if (color != 0) {
-                     net.minecraft.client.gui.Gui.drawRect(-21, 0, -25, 74, color);
-                     net.minecraft.client.gui.Gui.drawRect(21, 0, 25, 74, color);
-                     net.minecraft.client.gui.Gui.drawRect(-21, 0, 24, 4, color);
-                     net.minecraft.client.gui.Gui.drawRect(-21, 71, 25, 74, color);
-                 }
-                 GlStateManager.enableDepth();
-             } else if (type == 4) {
-                 EntityLivingBase en = (EntityLivingBase) e;
-                 double rhealth = en.getHealth() / en.getMaxHealth();
-                 int b = (int) (74.0D * rhealth);
-                 int hc = rhealth < 0.3D ? Color.red.getRGB() : (rhealth < 0.5D ? Color.orange.getRGB() : (rhealth < 0.7D ? Color.yellow.getRGB() : Color.green.getRGB()));
-                 GL11.glTranslated(x, y - 0.2D, z);
-                 GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
-                 GlStateManager.disableDepth();
-                 GL11.glScalef(0.03F + d, 0.03F + d, 0.03F + d);
-                 int i = (int) (21.0D + shift * 2.0D);
-                 net.minecraft.client.gui.Gui.drawRect(i, -1, i + 5, 75, Color.black.getRGB());
-                 net.minecraft.client.gui.Gui.drawRect(i + 1, b, i + 4, 74, Color.darkGray.getRGB());
-                 net.minecraft.client.gui.Gui.drawRect(i + 1, 0, i + 4, b, hc);
-                 GlStateManager.enableDepth();
-             } else if (type == 6) {
-                 d3p(x, y, z, 0.699999988079071D, 45, 1.5F, color, color == 0);
-             } else {
-                 float a = (float) (color >> 24 & 255) / 255.0F;
-                 float rr = (float) (color >> 16 & 255) / 255.0F;
-                 float gg = (float) (color >> 8 & 255) / 255.0F;
-                 float bb = (float) (color & 255) / 255.0F;
-                 if (type == 5) {
+            double x = e.lastTickPosX + (e.posX - e.lastTickPosX) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosX;
+            double y = e.lastTickPosY + (e.posY - e.lastTickPosY) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosY;
+            double z = e.lastTickPosZ + (e.posZ - e.lastTickPosZ) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosZ;
+            float d = (float) expand / 40.0F;
+            if (e instanceof EntityPlayer && damage && ((EntityPlayer) e).hurtTime != 0) {
+               color = Color.RED.getRGB();
+            }
+
+            GlStateManager.pushMatrix();
+            if (type == 3) {
+               GL11.glTranslated(x, y - 0.2D, z);
+               GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
+               GlStateManager.disableDepth();
+               GL11.glScalef(0.03F + d, 0.03F + d, 0.03F + d);
+               int outline = Color.black.getRGB();
+               net.minecraft.client.gui.Gui.drawRect(-20, -1, -26, 75, outline);
+               net.minecraft.client.gui.Gui.drawRect(20, -1, 26, 75, outline);
+               net.minecraft.client.gui.Gui.drawRect(-20, -1, 21, 5, outline);
+               net.minecraft.client.gui.Gui.drawRect(-20, 70, 21, 75, outline);
+               if (color != 0) {
+                  net.minecraft.client.gui.Gui.drawRect(-21, 0, -25, 74, color);
+                  net.minecraft.client.gui.Gui.drawRect(21, 0, 25, 74, color);
+                  net.minecraft.client.gui.Gui.drawRect(-21, 0, 24, 4, color);
+                  net.minecraft.client.gui.Gui.drawRect(-21, 71, 25, 74, color);
+               }
+
+               GlStateManager.enableDepth();
+            } else {
+               int i;
+               if (type == 4) {
+                  EntityLivingBase en = (EntityLivingBase) e;
+                  double r = en.getHealth() / en.getMaxHealth();
+                  int b = (int) (74.0D * r);
+                  int hc = r < 0.3D ? Color.red.getRGB() : (r < 0.5D ? Color.orange.getRGB() : (r < 0.7D ? Color.yellow.getRGB() : Color.green.getRGB()));
+                  GL11.glTranslated(x, y - 0.2D, z);
+                  GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
+                  GlStateManager.disableDepth();
+                  GL11.glScalef(0.03F + d, 0.03F + d, 0.03F + d);
+                  i = (int) (21.0D + shift * 2.0D);
+                  net.minecraft.client.gui.Gui.drawRect(i, -1, i + 5, 75, Color.black.getRGB());
+                  net.minecraft.client.gui.Gui.drawRect(i + 1, b, i + 4, 74, Color.darkGray.getRGB());
+                  net.minecraft.client.gui.Gui.drawRect(i + 1, 0, i + 4, b, hc);
+                  GlStateManager.enableDepth();
+               } else if (type == 6) {
+                  d3p(x, y, z, 0.699999988079071D, 45, 1.5F, color, color == 0);
+               } else {
+                  float a = (float) (color >> 24 & 255) / 255.0F;
+                  float r = (float) (color >> 16 & 255) / 255.0F;
+                  float g = (float) (color >> 8 & 255) / 255.0F;
+                  float b = (float) (color & 255) / 255.0F;
+                  if (type == 5) {
                      GL11.glTranslated(x, y - 0.2D, z);
                      GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
                      GlStateManager.disableDepth();
                      GL11.glScalef(0.03F + d, 0.03F, 0.03F + d);
                      d2p(0.0D, 95.0D, 10, 3, Color.black.getRGB());
-                     for (int i = 0; i < 6; ++i) {
-                         d2p(0.0D, 95 + (10 - i), 3, 4, Color.black.getRGB());
+
+                     for (i = 0; i < 6; ++i) {
+                        d2p(0.0D, 95 + (10 - i), 3, 4, Color.black.getRGB());
                      }
-                     for (int i = 0; i < 7; ++i) {
-                         d2p(0.0D, 95 + (10 - i), 2, 4, color);
+
+                     for (i = 0; i < 7; ++i) {
+                        d2p(0.0D, 95 + (10 - i), 2, 4, color);
                      }
+
                      d2p(0.0D, 95.0D, 8, 3, color);
                      GlStateManager.enableDepth();
-                 } else {
+                  } else {
                      AxisAlignedBB bbox = e.getEntityBoundingBox().expand(0.1D + expand, 0.1D + expand, 0.1D + expand);
-                     AxisAlignedBB axis = new AxisAlignedBB(
-                             bbox.minX - e.posX + x, bbox.minY - e.posY + y, bbox.minZ - e.posZ + z,
-                             bbox.maxX - e.posX + x, bbox.maxY - e.posY + y, bbox.maxZ - e.posZ + z);
+                     AxisAlignedBB axis = new AxisAlignedBB(bbox.minX - e.posX + x, bbox.minY - e.posY + y, bbox.minZ - e.posZ + z, bbox.maxX - e.posX + x, bbox.maxY - e.posY + y, bbox.maxZ - e.posZ + z);
                      GL11.glBlendFunc(770, 771);
                      GL11.glEnable(3042);
                      GL11.glDisable(3553);
                      GL11.glDisable(2929);
                      GL11.glDepthMask(false);
                      GL11.glLineWidth(2.0F);
-                     GL11.glColor4f(rr, gg, bb, a);
+                     GL11.glColor4f(r, g, b, a);
                      if (type == 1) {
-                         RenderGlobal.drawSelectionBoundingBox(axis);
+                        RenderGlobal.drawSelectionBoundingBox(axis);
                      } else if (type == 2) {
-                         dbb(axis, rr, gg, bb);
+                        dbb(axis, r, g, b);
                      }
+
                      GL11.glEnable(3553);
                      GL11.glEnable(2929);
                      GL11.glDepthMask(true);
                      GL11.glDisable(3042);
-                 }
-             }
-             GlStateManager.popMatrix();
-         } else {
-             double x = e.posX - mc.getRenderManager().viewerPosX;
-             double y = e.posY - mc.getRenderManager().viewerPosY;
-             double z = e.posZ - mc.getRenderManager().viewerPosZ;
-             float a = (float) (color >> 24 & 255) / 255.0F;
-             float rr = (float) (color >> 16 & 255) / 255.0F;
-             float gg = (float) (color >> 8 & 255) / 255.0F;
-             float bb = (float) (color & 255) / 255.0F;
-             
-             GlStateManager.pushMatrix();
-             AxisAlignedBB bbox = e.getEntityBoundingBox().expand(0.1D + expand, 0.1D + expand, 0.1D + expand);
-             AxisAlignedBB axis = new AxisAlignedBB(
-                     bbox.minX - e.posX + x, bbox.minY - e.posY + y, bbox.minZ - e.posZ + z,
-                     bbox.maxX - e.posX + x, bbox.maxY - e.posY + y, bbox.maxZ - e.posZ + z);
-             GL11.glBlendFunc(770, 771);
-             GL11.glEnable(3042);
-             GL11.glDisable(3553);
-             GL11.glDisable(2929);
-             GL11.glDepthMask(false);
-             GL11.glLineWidth(2.0F);
-             GL11.glColor4f(rr, gg, bb, a);
-             if (type == 1) {
-                 RenderGlobal.drawSelectionBoundingBox(axis);
-             } else if (type == 2) {
-                 dbb(axis, rr, gg, bb);
-             }
-             GL11.glEnable(3553);
-             GL11.glEnable(2929);
-             GL11.glDepthMask(true);
-             GL11.glDisable(3042);
-             GlStateManager.popMatrix();
+                  }
+               }
+            }
+
+            GlStateManager.popMatrix();
          }
-     }
+      }
 
       public static void dbb(AxisAlignedBB abb, float r, float g, float b) {
          float a = 0.25F;
@@ -343,36 +316,6 @@ public class Utils {
          GlStateManager.enableTexture2D();
          GlStateManager.disableBlend();
       }
-
-      public static void drawTextInsideEntity(EntityItem entity, String text, int color) {
-         Minecraft mc = Minecraft.getMinecraft();
-
-         double x = entity.posX - mc.getRenderManager().renderPosX;
-         double y = entity.posY + (entity.height / 2) - mc.getRenderManager().renderPosY;
-         double z = entity.posZ - mc.getRenderManager().renderPosZ;
- 
-         GL11.glPushMatrix();
-         GL11.glTranslated(x, y, z);
- 
-         GL11.glNormal3f(0.0F, 1.0F, 0.0F);
-         GL11.glRotatef(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
-         GL11.glRotatef(mc.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
- 
-         float scale = 0.02F;
-         GL11.glScalef(-scale, -scale, scale);
- 
-         GlStateManager.disableDepth();
-         GlStateManager.disableLighting();
-         GlStateManager.enableBlend();
- 
-         int textWidth = mc.fontRendererObj.getStringWidth(text);
-         mc.fontRendererObj.drawStringWithShadow(text, -textWidth / 2, 0, color);
-
-         GlStateManager.disableBlend();
-         GlStateManager.enableLighting();
-         GlStateManager.enableDepth();
-         GL11.glPopMatrix();
-     }
 
       public static void d3p(double x, double y, double z, double radius, int sides, float lineWidth, int color, boolean chroma) {
          float a = (float) (color >> 24 & 255) / 255.0F;

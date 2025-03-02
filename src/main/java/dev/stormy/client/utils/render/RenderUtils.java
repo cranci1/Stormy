@@ -15,7 +15,7 @@ public class RenderUtils {
     }
 
     public static void drawRoundedRect(float x, float y, float x1, float y1, final float radius, final int color) {
-        drawRoundedRect(x, y, x1, y1, radius, color, new boolean[] {true, true, true, true});
+        drawRoundedRect(x, y, x1, y1, radius, color,  new boolean[] {true,true,true,true} );
     }
 
     public static void drawRoundedRect(float x, float y, float x1, float y1, final float radius, final int color, boolean[] round) {
@@ -46,35 +46,35 @@ public class RenderUtils {
 
     public static void roundHelper(float x, float y, float radius, int pn, int pn2, int originalRotation, int finalRotation) {
         for (int i = originalRotation; i <= finalRotation; i += 3)
-            GL11.glVertex2d(x + (radius * -pn) + (Math.sin((i * 3.141592653589793) / 180.0) * radius * pn),
-                             y + (radius * pn2) + (Math.cos((i * 3.141592653589793) / 180.0) * radius * pn));
+            GL11.glVertex2d(x + (radius * -pn) + (Math.sin((i * 3.141592653589793) / 180.0) * radius * pn), y + (radius * pn2) + (Math.cos((i * 3.141592653589793) / 180.0) * radius * pn));
     }
 
     public static void drawRoundedOutline(float x, float y, float x1, float y1, final float radius, final float borderSize, final int color) {
-        drawRoundedOutline(x, y, x1, y1, radius, borderSize, color, new boolean[] {true, true, true, true});
+        drawRoundedOutline(x, y, x1, y1, radius, borderSize , color, new boolean[] {true,true,true,true});
     }
 
     public static void round(float x, float y, float x1, float y1, float radius, final boolean[] round) {
-        if (round[0])
-            roundHelper(x, y, radius, -1, 1, 0, 90);
+        if(round[0])
+            roundHelper(x, y, radius, -1, 1,0, 90);
         else
             GL11.glVertex2d(x, y);
 
-        if (round[1])
+        if(round[1])
             roundHelper(x, y1, radius, -1, -1, 90, 180);
         else
             GL11.glVertex2d(x, y1);
 
-        if (round[2])
+        if(round[2])
             roundHelper(x1, y1, radius, 1, -1, 0, 90);
         else
             GL11.glVertex2d(x1, y1);
 
-        if (round[3])
+        if(round[3])
             roundHelper(x1, y, radius, 1, 1, 90, 180);
         else
             GL11.glVertex2d(x1, y);
     }
+
 
     public static void drawRoundedOutline(float x, float y, float x1, float y1, final float radius, final float borderSize, final int color, boolean[] drawCorner) {
         GL11.glPushAttrib(0);
