@@ -3,6 +3,7 @@ package dev.stormy.client.module;
 import dev.stormy.client.module.modules.client.AntiBot;
 import dev.stormy.client.module.modules.client.ClickGuiModule;
 import dev.stormy.client.module.modules.combat.*;
+import dev.stormy.client.module.modules.gamemode.BedWars;
 import dev.stormy.client.module.modules.player.*;
 import dev.stormy.client.module.modules.render.*;
 import net.minecraft.client.gui.FontRenderer;
@@ -41,6 +42,7 @@ public class ModuleManager {
       addModule(new AutoBlock());
       addModule(new WTap());
       addModule(new ItemESP());
+      addModule(new BedWars());
 
       initialized = true;
    }

@@ -24,6 +24,37 @@ public class Utils {
    private static final Random rand = new Random();
    public static final Minecraft mc = Minecraft.getMinecraft();
 
+   public static boolean inFov(float fov, BlockPos blockPos) {
+      return inFov(fov, blockPos.getX(), blockPos.getZ());
+  }
+
+  public static boolean inFov(float fov, Entity entity) {
+      return inFov(fov, entity.posX, entity.posZ);
+  }
+
+  public static boolean inFov(float fov, final double posX, final double posZ) {
+      return inFov(mc.thePlayer, fov, posX, posZ);
+  }
+
+  public static boolean inFov(Entity viewPoint, float fov, final double posX, final double posZ) {
+      fov *= 0.5;
+      final double wrapAngleTo180_double = MathHelper.wrapAngleTo180_double((viewPoint.rotationYaw - angle(posX, posZ)) % 360.0f);
+      if (wrapAngleTo180_double > 0.0) {
+          if (wrapAngleTo180_double < fov) {
+              return true;
+          }
+      }
+      else if (wrapAngleTo180_double > -fov) {
+          return true;
+      }
+      return false;
+  }
+
+  
+  public static float angle(final double n, final double n2) {
+   return (float) (Math.atan2(n - mc.thePlayer.posX, n2 - mc.thePlayer.posZ) * 57.295780181884766 * -1.0);
+}
+
    public static class Java {
 
       public static ArrayList<String> toArrayList(String[] fakeList) {

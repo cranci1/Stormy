@@ -6,6 +6,7 @@ import dev.stormy.client.module.setting.impl.DescriptionSetting;
 import dev.stormy.client.module.setting.impl.SliderSetting;
 import dev.stormy.client.module.setting.impl.TickSetting;
 import dev.stormy.client.utils.player.PlayerUtils;
+import dev.stormy.client.utils.Utils;
 import dev.stormy.client.module.modules.client.AntiBot;
 import me.tryfle.stormy.events.LivingUpdateEvent;
 import net.minecraft.block.BlockLiquid;
@@ -53,28 +54,34 @@ public class AimAssist extends Module {
             if (en != null) {
                 double n = n(en);
                 if (n > 1.0D || n < -1.0D) {
-                    float val = (float) (-(n / (101.0D - speed.getInput())));
-                    mc.thePlayer.rotationYaw += val * 0.5D;
+                    float val = (float) (-(n / (101.0D - (speed.getInput()))));
+                    mc.thePlayer.rotationYaw += val;
                 }
             }
         }
     }
 
-    public Entity getEnemy() {
-        int fov = (int) AimAssist.fov.getInput();
-        for (EntityPlayer en : mc.theWorld.playerEntities) {
-            if (!isTarget(en)) {
-                continue;
-            } else if (ignoreTeammates.isToggled() && PlayerUtils.isTeamMate(en)) {
-                continue;
-            } else if (AntiBot.bot(en)) {
-                continue;
-            } else if (!aimInvis.isToggled() && en.isInvisible()) {
-                continue;
-            } else if ((double) mc.thePlayer.getDistanceToEntity(en) > distance.getInput()) {
-                continue;
+    private Entity getEnemy() {
+        final int n = (int)fov.getInput();
+        for (final EntityPlayer entityPlayer : mc.theWorld.playerEntities) {
+            if (entityPlayer != mc.thePlayer && entityPlayer.deathTime == 0) {
+                if (ignoreTeammates.isToggled() && PlayerUtils.isTeamMate(entityPlayer)) {
+                    continue;
+                }
+                if (!aimInvis.isToggled() && entityPlayer.isInvisible()) {
+                    continue;
+                }
+                if (mc.thePlayer.getDistanceToEntity(entityPlayer) > distance.getInput()) {
+                    continue;
+                }
+                if (AntiBot.bot(entityPlayer)) {
+                    continue;
+                }
+                if (n != 360 && !Utils.inFov((float)n, entityPlayer)) {
+                    continue;
+                }
+                return entityPlayer;
             }
-            return en;
         }
         return null;
     }

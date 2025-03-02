@@ -160,6 +160,6 @@ public abstract class Module {
    }
 
    public enum ModuleCategory {
-      Combat, Player, Render, Client
+      Combat, Player, Render, Client, GameMode
    }
 }
