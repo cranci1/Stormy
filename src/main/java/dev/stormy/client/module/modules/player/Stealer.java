@@ -34,7 +34,8 @@ public class Stealer extends Module {
 
     @SubscribeEvent
     public void onUpdate(UpdateEvent event) {
-        if (!event.isPre()) return;
+        if (!event.isPre())
+            return;
         if (mc.currentScreen instanceof GuiChest) {
             final ContainerChest container = (ContainerChest) mc.thePlayer.openContainer;
             final String containerName = container.getLowerChestInventory().getDisplayName().getUnformattedText();
@@ -60,11 +61,12 @@ public class Stealer extends Module {
                     continue;
                 }
 
-                this.nextClick = Math.round(MathUtils.randomInt((int)delay.getInputMin(), (int)delay.getInputMax()));
+                this.nextClick = Math.round(MathUtils.randomInt((int) delay.getInputMin(), (int) delay.getInputMax()));
                 mc.playerController.windowClick(container.windowId, i, 0, 1, mc.thePlayer);
                 this.stopwatch.reset();
                 this.lastClick = 0;
-                if (this.nextClick > 0) return;
+                if (this.nextClick > 0)
+                    return;
             }
 
             this.lastClick++;
@@ -80,7 +82,8 @@ public class Stealer extends Module {
 
     @SubscribeEvent
     public void onUpdate2(UpdateEvent event) {
-        if (!event.isPre()) return;
+        if (!event.isPre())
+            return;
 
         userInterface = false;
 

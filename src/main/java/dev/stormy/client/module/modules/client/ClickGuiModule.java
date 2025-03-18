@@ -4,7 +4,6 @@ import dev.stormy.client.clickgui.ClickGui;
 import dev.stormy.client.main.Stormy;
 import dev.stormy.client.module.Module;
 import dev.stormy.client.module.setting.impl.ComboSetting;
-import dev.stormy.client.utils.Utils;
 import dev.stormy.client.utils.player.PlayerUtils;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
@@ -19,8 +18,9 @@ public class ClickGuiModule extends Module {
         this.registerSetting(clientTheme = new ComboSetting<>("Theme", Colors.Steel));
     }
 
-    private final KeyBinding[] moveKeys = new KeyBinding[]{
-            mc.gameSettings.keyBindForward, mc.gameSettings.keyBindBack, mc.gameSettings.keyBindRight, mc.gameSettings.keyBindLeft, mc.gameSettings.keyBindJump, mc.gameSettings.keyBindSprint
+    private final KeyBinding[] moveKeys = new KeyBinding[] {
+            mc.gameSettings.keyBindForward, mc.gameSettings.keyBindBack, mc.gameSettings.keyBindRight,
+            mc.gameSettings.keyBindLeft, mc.gameSettings.keyBindJump, mc.gameSettings.keyBindSprint
     };
 
     @Override
