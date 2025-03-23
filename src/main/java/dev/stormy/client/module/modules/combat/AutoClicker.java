@@ -168,47 +168,39 @@ public class AutoClicker extends Module {
     }
 
     private void performClick() {
-        // Apply jitter effect
         applyJitter();
 
         long currentTime = System.currentTimeMillis();
 
-        // Initialize click timing if needed
         if (nextPressTime == 0L || nextReleaseTime == 0L) {
             updateClickDelay();
             return;
         }
 
-        // Press the mouse button
         if (currentTime > nextPressTime) {
             KeyBinding.setKeyBindState(lmb, true);
             KeyBinding.onTick(lmb);
             HookUtils.setMouseButtonState(0, true);
 
-            // Handle block hitting (right-click while attacking)
             if (blockHitChance.getInput() > 0.0 && rand.nextDouble() * 100 < blockHitChance.getInput()) {
-                // First ensure we're holding a sword that can block
-                if (mc.thePlayer != null && mc.thePlayer.getCurrentEquippedItem() != null &&
-                        mc.thePlayer.getCurrentEquippedItem().getItem() instanceof ItemSword) {
+                if (mc.objectMouseOver != null &&
+                        mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
+                    if (mc.thePlayer != null && mc.thePlayer.getCurrentEquippedItem() != null &&
+                            mc.thePlayer.getCurrentEquippedItem().getItem() instanceof ItemSword) {
 
-                    // Set block hit flag for next tick
-                    isBlockHitActive = true;
+                        isBlockHitActive = true;
 
-                    // Update the block hit immediately
-                    KeyBinding.setKeyBindState(rmb, true);
-                    KeyBinding.onTick(rmb);
-                    HookUtils.setMouseButtonState(1, true);
+                        KeyBinding.setKeyBindState(rmb, true);
+                        KeyBinding.onTick(rmb);
+                        HookUtils.setMouseButtonState(1, true);
 
-                    // Store the start time
-                    blockHitStartTime = System.currentTimeMillis();
+                        blockHitStartTime = System.currentTimeMillis();
+                    }
                 }
             }
 
-            // Update for next click cycle
             updateClickDelay();
-        }
-        // Release the mouse button
-        else if (currentTime > nextReleaseTime) {
+        } else if (currentTime > nextReleaseTime) {
             KeyBinding.setKeyBindState(lmb, false);
             HookUtils.setMouseButtonState(0, false);
         }
@@ -224,14 +216,12 @@ public class AutoClicker extends Module {
     }
 
     private void updateClickDelay() {
-        // Get a random CPS value between min and max
         double cps = minCPS.getInput() + (maxCPS.getInput() - minCPS.getInput()) * rand.nextDouble() +
                 (0.4D * rand.nextDouble());
 
         long delay = Math.round(1000.0D / cps);
         long currentTime = System.currentTimeMillis();
 
-        // Update the delay multiplier periodically
         if (currentTime > nextMultiplierUpdateTime) {
             if (!multiplierActive && rand.nextInt(100) >= 85) {
                 multiplierActive = true;
@@ -243,7 +233,6 @@ public class AutoClicker extends Module {
             nextMultiplierUpdateTime = currentTime + 500L + rand.nextInt(1500);
         }
 
-        // Add random extra delay occasionally
         if (currentTime > nextExtraDelayUpdateTime) {
             if (rand.nextInt(100) >= 80) {
                 delay += 50L + rand.nextInt(100);
