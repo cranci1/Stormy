@@ -19,7 +19,8 @@ public class ModuleManager {
    public static boolean initialized = false;
 
    public ModuleManager() {
-      if (initialized) return;
+      if (initialized)
+         return;
 
       addModule(new AutoClicker());
       addModule(new RightClicker());
@@ -43,6 +44,7 @@ public class ModuleManager {
       addModule(new WTap());
       addModule(new ItemESP());
       addModule(new BedWars());
+      addModule(new Stealer());
 
       initialized = true;
    }
@@ -53,7 +55,8 @@ public class ModuleManager {
    }
 
    public Module getModuleByClazz(Class<? extends Module> c) {
-      if (!initialized) return null;
+      if (!initialized)
+         return null;
 
       for (Module module : modules) {
          if (module.getClass().equals(c))
@@ -61,7 +64,6 @@ public class ModuleManager {
       }
       return null;
    }
-
 
    public List<Module> getModules() {
       return modules;
@@ -83,7 +85,8 @@ public class ModuleManager {
       if (ArrayListModule.alphabeticalSort.isToggled()) {
          modules.sort(Comparator.comparing(Module::getName));
       } else {
-         modules.sort((o1, o2) -> Utils.mc.fontRendererObj.getStringWidth(o2.getName()) - Utils.mc.fontRendererObj.getStringWidth(o1.getName()));
+         modules.sort((o1, o2) -> Utils.mc.fontRendererObj.getStringWidth(o2.getName())
+               - Utils.mc.fontRendererObj.getStringWidth(o1.getName()));
       }
 
    }
@@ -93,14 +96,15 @@ public class ModuleManager {
    }
 
    public void sortShortLong() {
-      modules.sort((o1, o2) -> Utils.mc.fontRendererObj.getStringWidth(o2.getName()) - Utils.mc.fontRendererObj.getStringWidth(o1.getName()));
+      modules.sort((o1, o2) -> Utils.mc.fontRendererObj.getStringWidth(o2.getName())
+            - Utils.mc.fontRendererObj.getStringWidth(o1.getName()));
    }
 
    public int getLongestActiveModule(FontRenderer fr) {
       int length = 0;
-      for(Module mod : modules) {
-         if(mod.isEnabled()){
-            if(fr.getStringWidth(mod.getName()) > length){
+      for (Module mod : modules) {
+         if (mod.isEnabled()) {
+            if (fr.getStringWidth(mod.getName()) > length) {
                length = fr.getStringWidth(mod.getName());
             }
          }
@@ -110,8 +114,8 @@ public class ModuleManager {
 
    public int getBoxHeight(FontRenderer fr, int margin) {
       int length = 0;
-      for(Module mod : modules) {
-         if(mod.isEnabled()){
+      for (Module mod : modules) {
+         if (mod.isEnabled()) {
             length += fr.FONT_HEIGHT + margin;
          }
       }
