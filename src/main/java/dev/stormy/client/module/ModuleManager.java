@@ -45,6 +45,7 @@ public class ModuleManager {
       addModule(new ItemESP());
       addModule(new BedWars());
       addModule(new Stealer());
+      addModule(new Killaura());
 
       initialized = true;
    }
