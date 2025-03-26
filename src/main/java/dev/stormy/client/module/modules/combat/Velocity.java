@@ -15,7 +15,7 @@ public class Velocity extends Module {
    public static ComboSetting<velomode> velomodes;
 
    public Velocity() {
-      super("Velocity", Module.ModuleCategory.Combat, 0);
+      super("AntiKnockback", Module.ModuleCategory.Combat, 0);
       this.registerSetting(horizontal = new SliderSetting("Horizontal", 90.0D, 0.0D, 200.0D, 1.0D));
       this.registerSetting(vertical = new SliderSetting("Vertical", 100.0D, 0.0D, 200.0D, 1.0D));
       this.registerSetting(chance = new SliderSetting("Chance", 100.0D, 0.0D, 100.0D, 1.0D));
@@ -24,8 +24,10 @@ public class Velocity extends Module {
 
    @SubscribeEvent
    public void onPacket(me.tryfle.stormy.events.PacketEvent e) {
-      if (velomodes.getMode() == velomode.Cancel || mc.thePlayer == null) return;
-      if (velomodes.getMode() == velomode.Minemen && mc.thePlayer.onGround) return;
+      if (velomodes.getMode() == velomode.Cancel || mc.thePlayer == null)
+         return;
+      if (velomodes.getMode() == velomode.Minemen && mc.thePlayer.onGround)
+         return;
       if (!e.isOutgoing()) {
          if (e.getPacket() instanceof S12PacketEntityVelocity) {
             if (chance.getInput() != 100.0D) {
@@ -44,15 +46,15 @@ public class Velocity extends Module {
    }
 
    public void velo(me.tryfle.stormy.events.PacketEvent e) {
-      if (velomodes.getMode() == velomode.Cancel) return;
+      if (velomodes.getMode() == velomode.Cancel)
+         return;
       S12PacketEntityVelocity packet = (S12PacketEntityVelocity) e.getPacket();
       IS12PacketEntityVelocity accessorPacket = (IS12PacketEntityVelocity) packet;
-      accessorPacket.setMotionX((int) (packet.getMotionX() * horizontal.getInput()/100));
-      accessorPacket.setMotionZ((int) (packet.getMotionZ() * horizontal.getInput()/100));
-      accessorPacket.setMotionY((int) (packet.getMotionY() * vertical.getInput()/100));
+      accessorPacket.setMotionX((int) (packet.getMotionX() * horizontal.getInput() / 100));
+      accessorPacket.setMotionZ((int) (packet.getMotionZ() * horizontal.getInput() / 100));
+      accessorPacket.setMotionY((int) (packet.getMotionY() * vertical.getInput() / 100));
       e.setPacket(accessorPacket);
    }
-
 
    @SubscribeEvent
    public void onPacketReceive(PacketEvent.Receive e) {
