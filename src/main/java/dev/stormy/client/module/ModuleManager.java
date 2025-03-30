@@ -42,6 +42,7 @@ public class ModuleManager {
       addModule(new FakeLag());
       addModule(new AutoBlock());
       addModule(new WTap());
+      addModule(new JumpReset());
       addModule(new ItemESP());
       addModule(new BedWars());
       addModule(new Stealer());
