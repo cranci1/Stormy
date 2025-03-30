@@ -19,27 +19,27 @@ import org.lwjgl.input.Mouse;
 public class WTap extends Module {
     public static SliderSetting range, chance;
     public static DoubleSliderSetting delay;
-    public static TickSetting playersOnly, sTapEnabled;
+    public static TickSetting playersOnly, sTapEnabled, sprintTapEnabled;
 
     TimerUtils timer = new TimerUtils();
 
     public WTap() {
-        super("WTap", Module.ModuleCategory.Combat, 0);
+        super("WTap", ModuleCategory.Combat, 0);
         this.registerSetting(new DescriptionSetting("Sprint resets automatically."));
         this.registerSetting(range = new SliderSetting("Range", 4.0D, 0.0D, 6.0D, 0.1D));
         this.registerSetting(chance = new SliderSetting("Chance", 50.0D, 0.0D, 100.0D, 1.0D));
         this.registerSetting(delay = new DoubleSliderSetting("Delay", 50.0D, 100.0D, 0.0D, 300.0D, 5.0D));
         this.registerSetting(playersOnly = new TickSetting("Players Only", true));
         this.registerSetting(sTapEnabled = new TickSetting("STap", false));
+        this.registerSetting(sprintTapEnabled = new TickSetting("Sprint Tap", false));
     }
 
     private final int wkey = mc.gameSettings.keyBindForward.getKeyCode();
 
     public boolean isLookingAtPlayer() {
-        MovingObjectPosition result = mc.objectMouseOver;
-        if (result != null && result.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY
-                && result.entityHit instanceof EntityPlayer targetPlayer) {
-            return PlayerUtils.lookingAtPlayer(mc.thePlayer, targetPlayer, range.getInput());
+        if (mc.objectMouseOver != null
+                && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
+            return mc.objectMouseOver.entityHit instanceof EntityPlayer;
         }
         return false;
     }
@@ -78,7 +78,7 @@ public class WTap extends Module {
         if (mc.thePlayer.moveForward > 0) {
             KeyBinding.setKeyBindState(wkey, true);
             KeyBinding.onTick(wkey);
-            if (sTapEnabled.isToggled()) {
+            if (sTapEnabled.isToggled() || sprintTapEnabled.isToggled()) {
                 int sprintKey = mc.gameSettings.keyBindSprint.getKeyCode();
                 KeyBinding.setKeyBindState(sprintKey, true);
                 KeyBinding.onTick(sprintKey);
