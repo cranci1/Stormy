@@ -26,34 +26,33 @@ public class Utils {
 
    public static boolean inFov(float fov, BlockPos blockPos) {
       return inFov(fov, blockPos.getX(), blockPos.getZ());
-  }
+   }
 
-  public static boolean inFov(float fov, Entity entity) {
+   public static boolean inFov(float fov, Entity entity) {
       return inFov(fov, entity.posX, entity.posZ);
-  }
+   }
 
-  public static boolean inFov(float fov, final double posX, final double posZ) {
+   public static boolean inFov(float fov, final double posX, final double posZ) {
       return inFov(mc.thePlayer, fov, posX, posZ);
-  }
+   }
 
-  public static boolean inFov(Entity viewPoint, float fov, final double posX, final double posZ) {
+   public static boolean inFov(Entity viewPoint, float fov, final double posX, final double posZ) {
       fov *= 0.5;
-      final double wrapAngleTo180_double = MathHelper.wrapAngleTo180_double((viewPoint.rotationYaw - angle(posX, posZ)) % 360.0f);
+      final double wrapAngleTo180_double = MathHelper
+            .wrapAngleTo180_double((viewPoint.rotationYaw - angle(posX, posZ)) % 360.0f);
       if (wrapAngleTo180_double > 0.0) {
-          if (wrapAngleTo180_double < fov) {
-              return true;
-          }
-      }
-      else if (wrapAngleTo180_double > -fov) {
-          return true;
+         if (wrapAngleTo180_double < fov) {
+            return true;
+         }
+      } else if (wrapAngleTo180_double > -fov) {
+         return true;
       }
       return false;
-  }
+   }
 
-  
-  public static float angle(final double n, final double n2) {
-   return (float) (Math.atan2(n - mc.thePlayer.posX, n2 - mc.thePlayer.posZ) * 57.295780181884766 * -1.0);
-}
+   public static float angle(final double n, final double n2) {
+      return (float) (Math.atan2(n - mc.thePlayer.posX, n2 - mc.thePlayer.posZ) * 57.295780181884766 * -1.0);
+   }
 
    public static class Java {
 
@@ -71,12 +70,14 @@ public class Utils {
          return (int) (Math.random() * (v - inputMin) + inputMin);
       }
    }
+
    public static class Distance {
       /**
        * Credit: @AriaJackie/Fractal
        * Calculates the distance to the entity.
-       * @param entity    the target entity.
-       * @return          the distance to the entity.
+       * 
+       * @param entity the target entity.
+       * @return the distance to the entity.
        */
       public static double distanceToEntity(final EntityPlayer entity) {
          Minecraft mcInstance = Minecraft.getMinecraft();
@@ -90,9 +91,10 @@ public class Utils {
       /**
        * Credit: @AriaJackie/Fractal
        * Calculates the distance to the specified positions.
-       * @param posX      the target posX.
-       * @param posZ      the target posZ.
-       * @return          the distance to the positions.
+       * 
+       * @param posX the target posX.
+       * @param posZ the target posZ.
+       * @return the distance to the positions.
        */
       public static double distanceToPoses(final double posX, final double posZ) {
          Minecraft mcInstance = Minecraft.getMinecraft();
@@ -113,6 +115,11 @@ public class Utils {
             double x = (double) bp.getX() - mc.getRenderManager().viewerPosX;
             double y = (double) bp.getY() - mc.getRenderManager().viewerPosY;
             double z = (double) bp.getZ() - mc.getRenderManager().viewerPosZ;
+
+            // Save GL states
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+            GL11.glPushMatrix();
+
             GL11.glBlendFunc(770, 771);
             GL11.glEnable(3042);
             GL11.glLineWidth(2.0F);
@@ -129,24 +136,179 @@ public class Utils {
                dbb(new AxisAlignedBB(x, y, z, x + 1.0D, y + 1.0D, z + 1.0D), r, g, b);
             }
 
+            // Restore GL states
+            GL11.glPopMatrix();
+            GL11.glPopAttrib();
+
+            // Additional restore just to be safe
             GL11.glEnable(3553);
             GL11.glEnable(2929);
             GL11.glDepthMask(true);
             GL11.glDisable(3042);
+            GlStateManager.resetColor();
          }
       }
 
-      public static void drawBoxAroundEntity(Entity e, int type, double expand, double shift, int color, boolean damage) {
+      /**
+       * Renders an ESP box around a block that is visible through walls
+       * 
+       * @param bp        The BlockPos to render around
+       * @param color     The color to use for the box
+       * @param filled    Whether to fill the box or just draw lines
+       * @param lineWidth The width of the lines for the box
+       */
+      public static void renderBlockESP(BlockPos bp, int color, boolean filled, float lineWidth) {
+         if (bp == null)
+            return;
+
+         double x = bp.getX() - mc.getRenderManager().viewerPosX;
+         double y = bp.getY() - mc.getRenderManager().viewerPosY;
+         double z = bp.getZ() - mc.getRenderManager().viewerPosZ;
+         AxisAlignedBB box = new AxisAlignedBB(x, y, z, x + 1.0D, y + 1.0D, z + 1.0D);
+
+         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+         GL11.glPushMatrix();
+
+         GL11.glEnable(GL11.GL_BLEND);
+         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+         GL11.glDisable(GL11.GL_TEXTURE_2D);
+         GL11.glDisable(GL11.GL_LIGHTING);
+         GL11.glDisable(GL11.GL_DEPTH_TEST);
+         GL11.glDepthMask(false);
+         GL11.glLineWidth(lineWidth);
+
+         float a = (float) (color >> 24 & 255) / 255.0F;
+         float r = (float) (color >> 16 & 255) / 255.0F;
+         float g = (float) (color >> 8 & 255) / 255.0F;
+         float b = (float) (color & 255) / 255.0F;
+
+         // Draw outline
+         GL11.glColor4f(r, g, b, a >= 0.8f ? a : a + 0.2f);
+         RenderGlobal.drawSelectionBoundingBox(box);
+
+         // Fill the box if requested
+         if (filled) {
+            GL11.glColor4f(r, g, b, a * 0.3f);
+            drawFilledBox(box);
+         }
+
+         // Restore GL states
+         GL11.glEnable(GL11.GL_TEXTURE_2D);
+         GL11.glEnable(GL11.GL_DEPTH_TEST);
+         GL11.glDepthMask(true);
+         GL11.glDisable(GL11.GL_BLEND);
+         GL11.glPopMatrix();
+         GL11.glPopAttrib();
+      }
+
+      /**
+       * Draw a filled box without normal texture
+       * 
+       * @param box The bounding box to draw
+       */
+      public static void drawFilledBox(AxisAlignedBB box) {
+         // Top face
+         GL11.glBegin(GL11.GL_QUADS);
+         GL11.glVertex3d(box.minX, box.maxY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.maxZ);
+         GL11.glVertex3d(box.minX, box.maxY, box.maxZ);
+
+         // Bottom face
+         GL11.glVertex3d(box.minX, box.minY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.minY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.minY, box.maxZ);
+         GL11.glVertex3d(box.minX, box.minY, box.maxZ);
+
+         // North face
+         GL11.glVertex3d(box.minX, box.minY, box.minZ);
+         GL11.glVertex3d(box.minX, box.maxY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.minY, box.minZ);
+
+         // South face
+         GL11.glVertex3d(box.minX, box.minY, box.maxZ);
+         GL11.glVertex3d(box.minX, box.maxY, box.maxZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.maxZ);
+         GL11.glVertex3d(box.maxX, box.minY, box.maxZ);
+
+         // West face
+         GL11.glVertex3d(box.minX, box.minY, box.minZ);
+         GL11.glVertex3d(box.minX, box.minY, box.maxZ);
+         GL11.glVertex3d(box.minX, box.maxY, box.maxZ);
+         GL11.glVertex3d(box.minX, box.maxY, box.minZ);
+
+         // East face
+         GL11.glVertex3d(box.maxX, box.minY, box.minZ);
+         GL11.glVertex3d(box.maxX, box.minY, box.maxZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.maxZ);
+         GL11.glVertex3d(box.maxX, box.maxY, box.minZ);
+         GL11.glEnd();
+      }
+
+      /**
+       * Draw a traceline from player to a position
+       */
+      public static void drawTraceToBlock(BlockPos pos, int color, float lineWidth) {
+         double x = pos.getX() + 0.5 - mc.getRenderManager().viewerPosX;
+         double y = pos.getY() + 0.5 - mc.getRenderManager().viewerPosY;
+         double z = pos.getZ() + 0.5 - mc.getRenderManager().viewerPosZ;
+
+         // Eyes position
+         double eyeX = 0;
+         double eyeY = 0;
+         double eyeZ = 0;
+
+         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+         GL11.glPushMatrix();
+
+         GL11.glEnable(GL11.GL_BLEND);
+         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+         GL11.glDisable(GL11.GL_TEXTURE_2D);
+         GL11.glDisable(GL11.GL_DEPTH_TEST);
+         GL11.glDepthMask(false);
+         GL11.glLineWidth(lineWidth);
+
+         // Extract color components
+         float a = (float) (color >> 24 & 255) / 255.0F;
+         float r = (float) (color >> 16 & 255) / 255.0F;
+         float g = (float) (color >> 8 & 255) / 255.0F;
+         float b = (float) (color & 255) / 255.0F;
+         GL11.glColor4f(r, g, b, a);
+
+         // Draw line
+         GL11.glBegin(GL11.GL_LINES);
+         GL11.glVertex3d(eyeX, eyeY, eyeZ);
+         GL11.glVertex3d(x, y, z);
+         GL11.glEnd();
+
+         // Restore GL states
+         GL11.glEnable(GL11.GL_TEXTURE_2D);
+         GL11.glEnable(GL11.GL_DEPTH_TEST);
+         GL11.glDepthMask(true);
+         GL11.glDisable(GL11.GL_BLEND);
+         GL11.glPopMatrix();
+         GL11.glPopAttrib();
+      }
+
+      public static void drawBoxAroundEntity(Entity e, int type, double expand, double shift, int color,
+            boolean damage) {
          if (e instanceof EntityLivingBase) {
-            double x = e.lastTickPosX + (e.posX - e.lastTickPosX) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosX;
-            double y = e.lastTickPosY + (e.posY - e.lastTickPosY) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosY;
-            double z = e.lastTickPosZ + (e.posZ - e.lastTickPosZ) * (double) mc.timer.renderPartialTicks - mc.getRenderManager().viewerPosZ;
+            double x = e.lastTickPosX + (e.posX - e.lastTickPosX) * (double) mc.timer.renderPartialTicks
+                  - mc.getRenderManager().viewerPosX;
+            double y = e.lastTickPosY + (e.posY - e.lastTickPosY) * (double) mc.timer.renderPartialTicks
+                  - mc.getRenderManager().viewerPosY;
+            double z = e.lastTickPosZ + (e.posZ - e.lastTickPosZ) * (double) mc.timer.renderPartialTicks
+                  - mc.getRenderManager().viewerPosZ;
             float d = (float) expand / 40.0F;
             if (e instanceof EntityPlayer && damage && ((EntityPlayer) e).hurtTime != 0) {
                color = Color.RED.getRGB();
             }
 
+            // Save GL state
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
             GlStateManager.pushMatrix();
+
             if (type == 3) {
                GL11.glTranslated(x, y - 0.2D, z);
                GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
@@ -171,7 +333,9 @@ public class Utils {
                   EntityLivingBase en = (EntityLivingBase) e;
                   double r = en.getHealth() / en.getMaxHealth();
                   int b = (int) (74.0D * r);
-                  int hc = r < 0.3D ? Color.red.getRGB() : (r < 0.5D ? Color.orange.getRGB() : (r < 0.7D ? Color.yellow.getRGB() : Color.green.getRGB()));
+                  int hc = r < 0.3D ? Color.red.getRGB()
+                        : (r < 0.5D ? Color.orange.getRGB()
+                              : (r < 0.7D ? Color.yellow.getRGB() : Color.green.getRGB()));
                   GL11.glTranslated(x, y - 0.2D, z);
                   GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
                   GlStateManager.disableDepth();
@@ -207,7 +371,9 @@ public class Utils {
                      GlStateManager.enableDepth();
                   } else {
                      AxisAlignedBB bbox = e.getEntityBoundingBox().expand(0.1D + expand, 0.1D + expand, 0.1D + expand);
-                     AxisAlignedBB axis = new AxisAlignedBB(bbox.minX - e.posX + x, bbox.minY - e.posY + y, bbox.minZ - e.posZ + z, bbox.maxX - e.posX + x, bbox.maxY - e.posY + y, bbox.maxZ - e.posZ + z);
+                     AxisAlignedBB axis = new AxisAlignedBB(bbox.minX - e.posX + x, bbox.minY - e.posY + y,
+                           bbox.minZ - e.posZ + z, bbox.maxX - e.posX + x, bbox.maxY - e.posY + y,
+                           bbox.maxZ - e.posZ + z);
                      GL11.glBlendFunc(770, 771);
                      GL11.glEnable(3042);
                      GL11.glDisable(3553);
@@ -229,14 +395,88 @@ public class Utils {
                }
             }
 
+            // Restore GL state
             GlStateManager.popMatrix();
+            GL11.glPopAttrib();
+
+            // Additional reset to ensure proper state
+            GlStateManager.resetColor();
+            GlStateManager.enableDepth();
          }
+      }
+
+      /**
+       * Improved method for drawing wall-hack style outlines
+       * 
+       * @param entity    The entity to draw around
+       * @param color     The color to use
+       * @param lineWidth Line width for outline
+       * @param outline   Whether to draw outline
+       * @param fill      Whether to fill the box
+       */
+      public static void drawEntityESP(Entity entity, int color, float lineWidth, boolean outline, boolean fill) {
+         if (entity == null)
+            return;
+
+         double x = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * mc.timer.renderPartialTicks
+               - mc.getRenderManager().viewerPosX;
+         double y = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * mc.timer.renderPartialTicks
+               - mc.getRenderManager().viewerPosY;
+         double z = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * mc.timer.renderPartialTicks
+               - mc.getRenderManager().viewerPosZ;
+
+         AxisAlignedBB box = new AxisAlignedBB(
+               x - entity.width / 2, y, z - entity.width / 2,
+               x + entity.width / 2, y + entity.height, z + entity.width / 2);
+
+         // Extract color components
+         float a = (float) (color >> 24 & 255) / 255.0F;
+         float r = (float) (color >> 16 & 255) / 255.0F;
+         float g = (float) (color >> 8 & 255) / 255.0F;
+         float b = (float) (color & 255) / 255.0F;
+
+         // Save GL state
+         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+         GL11.glPushMatrix();
+
+         // Setup rendering mode
+         GL11.glDisable(GL11.GL_TEXTURE_2D);
+         GL11.glDisable(GL11.GL_LIGHTING);
+         GL11.glDisable(GL11.GL_DEPTH_TEST);
+         GL11.glEnable(GL11.GL_BLEND);
+         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+         GL11.glLineWidth(lineWidth);
+         GL11.glEnable(GL11.GL_LINE_SMOOTH);
+
+         // Draw filled box if requested
+         if (fill) {
+            GL11.glColor4f(r, g, b, a * 0.3f);
+            drawFilledBox(box);
+         }
+
+         // Draw outline if requested
+         if (outline) {
+            GL11.glColor4f(r, g, b, a);
+            RenderGlobal.drawSelectionBoundingBox(box);
+         }
+
+         // Restore GL state
+         GL11.glDisable(GL11.GL_BLEND);
+         GL11.glEnable(GL11.GL_TEXTURE_2D);
+         GL11.glEnable(GL11.GL_DEPTH_TEST);
+         GL11.glDisable(GL11.GL_LINE_SMOOTH);
+         GL11.glPopMatrix();
+         GL11.glPopAttrib();
       }
 
       public static void dbb(AxisAlignedBB abb, float r, float g, float b) {
          float a = 0.25F;
          Tessellator ts = Tessellator.getInstance();
          WorldRenderer vb = ts.getWorldRenderer();
+
+         // Save GL state
+         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+
          vb.begin(7, DefaultVertexFormats.POSITION_COLOR);
          vb.pos(abb.minX, abb.minY, abb.minZ).color(r, g, b, a).endVertex();
          vb.pos(abb.minX, abb.maxY, abb.minZ).color(r, g, b, a).endVertex();
@@ -297,6 +537,54 @@ public class Utils {
          vb.pos(abb.maxX, abb.maxY, abb.maxZ).color(r, g, b, a).endVertex();
          vb.pos(abb.maxX, abb.minY, abb.maxZ).color(r, g, b, a).endVertex();
          ts.draw();
+
+         // Restore GL state
+         GL11.glPopAttrib();
+      }
+
+      /**
+       * Draw a 2D outline around a block with color gradient
+       */
+      public static void drawOutline2D(BlockPos pos, Color color, float lineWidth) {
+         double x = pos.getX() - mc.getRenderManager().viewerPosX;
+         double y = pos.getY() - mc.getRenderManager().viewerPosY;
+         double z = pos.getZ() - mc.getRenderManager().viewerPosZ;
+
+         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+         GL11.glPushMatrix();
+
+         GL11.glTranslated(x, y, z);
+         GL11.glNormal3f(0.0F, 1.0F, 0.0F);
+         GL11.glRotated(-mc.getRenderManager().playerViewY, 0.0D, 1.0D, 0.0D);
+
+         float scale = 0.016666668F * 1.6F;
+         GL11.glScalef(-scale, -scale, scale);
+
+         GL11.glDisable(GL11.GL_TEXTURE_2D);
+         GL11.glDisable(GL11.GL_DEPTH_TEST);
+         GL11.glEnable(GL11.GL_BLEND);
+         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+         GL11.glEnable(GL11.GL_LINE_SMOOTH);
+
+         GL11.glLineWidth(lineWidth);
+         GL11.glBegin(GL11.GL_LINE_LOOP);
+         GL11.glColor4f(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f,
+               color.getAlpha() / 255f);
+
+         // Draw a square around the block
+         GL11.glVertex2f(-15, 15);
+         GL11.glVertex2f(15, 15);
+         GL11.glVertex2f(15, -15);
+         GL11.glVertex2f(-15, -15);
+         GL11.glEnd();
+
+         GL11.glDisable(GL11.GL_LINE_SMOOTH);
+         GL11.glEnable(GL11.GL_TEXTURE_2D);
+         GL11.glEnable(GL11.GL_DEPTH_TEST);
+         GL11.glDisable(GL11.GL_BLEND);
+
+         GL11.glPopMatrix();
+         GL11.glPopAttrib();
       }
 
       public static PositionMode getPostitionMode(int marginX, int marginY, double height, double width) {
@@ -340,7 +628,8 @@ public class Utils {
 
          for (int i = 0; i < sides; ++i) {
             double angle = 6.283185307179586D * (double) i / (double) sides + Math.toRadians(180.0D);
-            worldrenderer.pos(x + Math.sin(angle) * (double) radius, y + Math.cos(angle) * (double) radius, 0.0D).endVertex();
+            worldrenderer.pos(x + Math.sin(angle) * (double) radius, y + Math.cos(angle) * (double) radius, 0.0D)
+                  .endVertex();
          }
 
          tessellator.draw();
@@ -348,7 +637,8 @@ public class Utils {
          GlStateManager.disableBlend();
       }
 
-      public static void d3p(double x, double y, double z, double radius, int sides, float lineWidth, int color, boolean chroma) {
+      public static void d3p(double x, double y, double z, double radius, int sides, float lineWidth, int color,
+            boolean chroma) {
          float a = (float) (color >> 24 & 255) / 255.0F;
          float r = (float) (color >> 16 & 255) / 255.0F;
          float g = (float) (color >> 8 & 255) / 255.0F;
