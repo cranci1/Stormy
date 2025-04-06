@@ -21,13 +21,13 @@ public class ClientConfig {
    private final String clickGuiPosPrefix = "clickgui-pos~ ";
    private final String loadedConfigPrefix = "loaded-cfg~ ";
 
-   public ClientConfig(){
-      if(!configDir.exists()){
+   public ClientConfig() {
+      if (!configDir.exists()) {
          configDir.mkdir();
       }
 
       configFile = new File(configDir, fileName);
-      if(!configFile.exists()){
+      if (!configFile.exists()) {
          try {
             configFile.createNewFile();
          } catch (IOException e) {
@@ -55,22 +55,26 @@ public class ClientConfig {
       }
    }
 
-   public void applyConfig(){
+   public void applyConfig() {
       List<String> config = this.parseConfigFile();
 
-      for(String line : config){
-         if(line.startsWith(clickGuiPosPrefix)){
+      for (String line : config) {
+         if (line.startsWith(clickGuiPosPrefix)) {
             loadClickGuiCoords(line.replace(clickGuiPosPrefix, ""));
-         } else if(line.startsWith(loadedConfigPrefix)){
+         } else if (line.startsWith(loadedConfigPrefix)) {
             Stormy.configManager.loadConfigByName(line.replace(loadedConfigPrefix, ""));
          } else if (line.startsWith(ArrayListModule.HUDX_prefix)) {
             try {
                ArrayListModule.setHudX(Integer.parseInt(line.replace(ArrayListModule.HUDX_prefix, "")));
-            } catch (Exception e) {e.printStackTrace();}
+            } catch (Exception e) {
+               e.printStackTrace();
+            }
          } else if (line.startsWith(ArrayListModule.HUDY_prefix)) {
             try {
                ArrayListModule.setHudY(Integer.parseInt(line.replace(ArrayListModule.HUDY_prefix, "")));
-            } catch (Exception e) {e.printStackTrace();}
+            } catch (Exception e) {
+               e.printStackTrace();
+            }
          }
       }
    }
@@ -90,9 +94,9 @@ public class ClientConfig {
    }
 
    private void loadClickGuiCoords(String decryptedString) {
-      for (String what : decryptedString.split("/")){
+      for (String what : decryptedString.split("/")) {
          for (CategoryComponent cat : Stormy.clickGui.getCategoryList()) {
-            if(what.startsWith(cat.categoryName.name())){
+            if (what.startsWith(cat.categoryName.name())) {
                List<String> cfg = Utils.Java.StringListToList(what.split("~"));
                cat.setX(Integer.parseInt(cfg.get(1)));
                cat.setY(Integer.parseInt(cfg.get(2)));
@@ -114,7 +118,10 @@ public class ClientConfig {
          posConfig.append(cat.isOpened());
          posConfig.append("/");
       }
-      return posConfig.substring(0, posConfig.toString().length() - 2);
-
+      String result = posConfig.toString();
+      if (result.endsWith("/")) {
+         return result.substring(0, result.length() - 1);
+      }
+      return result;
    }
 }
