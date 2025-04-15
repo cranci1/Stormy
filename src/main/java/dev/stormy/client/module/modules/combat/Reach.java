@@ -30,7 +30,7 @@ public class Reach extends Module {
    public Reach() {
       super("Reach", ModuleCategory.Combat, 0);
       this.registerSetting(new DescriptionSetting("Increases your reach."));
-      this.registerSetting(reachDist = new DoubleSliderSetting("Reach", 3.0D, 3.15D, 3.0D, 6.0D, 0.05D));
+      this.registerSetting(reachDist = new DoubleSliderSetting("Reach", 3.07D, 3.10D, 3.0D, 3.5D, 0.01D));
       this.registerSetting(movingOnly = new TickSetting("Moving only", false));
       this.registerSetting(sprintOnly = new TickSetting("Sprint only", false));
       this.registerSetting(hitThroughBlocks = new TickSetting("Hit through blocks", false));

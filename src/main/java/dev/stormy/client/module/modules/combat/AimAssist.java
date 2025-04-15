@@ -25,7 +25,7 @@ public class AimAssist extends Module {
     public AimAssist() {
         super("AimAssist", ModuleCategory.Combat, 0);
         this.registerSetting(new DescriptionSetting("Aims at enemies."));
-        this.registerSetting(speed = new SliderSetting("Speed", 45.0D, 1.0D, 100.0D, 1.0D));
+        this.registerSetting(speed = new SliderSetting("Speed", 1.0D, 0.1D, 2.0D, 1.0D));
         this.registerSetting(fov = new SliderSetting("FOV", 90.0D, 15.0D, 180.0D, 1.0D));
         this.registerSetting(distance = new SliderSetting("Distance", 4.5D, 1.0D, 10.0D, 0.5D));
         this.registerSetting(clickAim = new TickSetting("Clicking only", true));
@@ -34,20 +34,18 @@ public class AimAssist extends Module {
         this.registerSetting(breakBlocks = new TickSetting("Break Blocks", true));
     }
 
-
     @SubscribeEvent
     public void onUpdateCenter(LivingUpdateEvent e) {
         if (mc.thePlayer == null
                 || mc.currentScreen != null
                 || !mc.inGameHasFocus
                 || (weaponOnly.isToggled() && PlayerUtils.isPlayerHoldingWeapon())
-                || (breakBlocks.isToggled() && breakBlock())
-        ) return;
+                || (breakBlocks.isToggled() && breakBlock()))
+            return;
 
         if (!clickAim.isToggled() ||
                 (Stormy.moduleManager.getModuleByClazz(AutoClicker.class).isEnabled() && Mouse.isButtonDown(0)) ||
-                Mouse.isButtonDown(0)
-        ) {
+                Mouse.isButtonDown(0)) {
             Entity en = this.getEnemy();
             if (en != null) {
                 double n = n(en);
@@ -95,7 +93,8 @@ public class AimAssist extends Module {
         if (breakBlocks.isToggled() && mc.objectMouseOver != null) {
             BlockPos p = mc.objectMouseOver.getBlockPos();
             if (p != null && Mouse.isButtonDown(0)) {
-                if (mc.theWorld.getBlockState(p).getBlock() != Blocks.air && !(mc.theWorld.getBlockState(p).getBlock() instanceof BlockLiquid)) {
+                if (mc.theWorld.getBlockState(p).getBlock() != Blocks.air
+                        && !(mc.theWorld.getBlockState(p).getBlock() instanceof BlockLiquid)) {
                     if (!breakHeld) {
                         int e = mc.gameSettings.keyBindAttack.getKeyCode();
                         KeyBinding.setKeyBindState(e, true);
@@ -113,7 +112,8 @@ public class AimAssist extends Module {
     }
 
     public boolean isTarget(EntityPlayer en) {
-        if (en == mc.thePlayer) return false;
+        if (en == mc.thePlayer)
+            return false;
         return en.deathTime == 0;
     }
 }
