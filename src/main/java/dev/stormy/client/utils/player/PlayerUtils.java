@@ -1,6 +1,5 @@
 package dev.stormy.client.utils.player;
 
-import dev.stormy.client.utils.Utils;
 import dev.stormy.client.utils.IMethods;
 import dev.stormy.client.utils.client.ClientUtils;
 import net.minecraft.client.network.NetworkPlayerInfo;
@@ -16,7 +15,7 @@ import net.minecraft.util.MathHelper;
 
 /**
  * @author sassan
- * 23.11.2023, 2023
+ *         23.11.2023, 2023
  */
 public class PlayerUtils implements IMethods {
     public static void sendMessageToSelf(String txt) {
@@ -34,24 +33,51 @@ public class PlayerUtils implements IMethods {
         return mc.thePlayer.moveForward != 0.0F || mc.thePlayer.moveStrafing != 0.0F;
     }
 
-    public static double fovFromEntity(Entity en) {
-        return ((double) (mc.thePlayer.rotationYaw - fovToEntity(en)) % 360.0D + 540.0D) % 360.0D - 180.0D;
+    public static boolean isBreakingBlock() {
+        return mc.playerController != null && mc.playerController.getIsHittingBlock();
+    }
+    
+    /**
+     * Returns the yaw difference from the player to the entity.
+     */
+    public static double fovFromEntity(Entity entity) {
+        double dx = entity.posX - mc.thePlayer.posX;
+        double dz = entity.posZ - mc.thePlayer.posZ;
+        double angleToEntity = Math.toDegrees(Math.atan2(dz, dx));
+        double playerYaw = MathHelper.wrapAngleTo180_double(mc.thePlayer.rotationYaw);
+        double diff = MathHelper.wrapAngleTo180_double(angleToEntity - playerYaw);
+        return diff;
     }
 
-    public static float fovToEntity(Entity ent) {
-        double x = ent.posX - mc.thePlayer.posX;
-        double z = ent.posZ - mc.thePlayer.posZ;
-        double yaw = Math.atan2(x, z) * 57.2957795D;
-        return (float) (yaw * -1.0D);
+    /**
+     * Returns the yaw angle from the player to the entity.
+     */
+    public static float fovToEntity(Entity entity) {
+        double dx = entity.posX - mc.thePlayer.posX;
+        double dz = entity.posZ - mc.thePlayer.posZ;
+        return (float) Math.toDegrees(Math.atan2(dz, dx));
     }
 
-    public static boolean lookingAtPlayer(EntityPlayer viewer, EntityPlayer targetPlayer, double maxDistance) {
-        double deltaX = targetPlayer.posX - viewer.posX;
-        double deltaY = targetPlayer.posY - viewer.posY + viewer.getEyeHeight();
-        double deltaZ = targetPlayer.posZ - viewer.posZ;
-        double distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
-        return distance < maxDistance;
+    /**
+     * Checks if the viewer is looking at the target player within a certain
+     * distance.
+     */
+    public static boolean lookingAtPlayer(EntityPlayer viewer, EntityPlayer target, double maxDistance) {
+        double dx = target.posX - viewer.posX;
+        double dy = (target.posY + target.getEyeHeight()) - (viewer.posY + viewer.getEyeHeight());
+        double dz = target.posZ - viewer.posZ;
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance > maxDistance)
+            return false;
+
+        double angleToTarget = Math.toDegrees(Math.atan2(dz, dx));
+        double viewerYaw = MathHelper.wrapAngleTo180_double(viewer.rotationYaw);
+        double yawDiff = MathHelper.wrapAngleTo180_double(angleToTarget - viewerYaw);
+
+        // Consider within 30 degrees as "looking at"
+        return Math.abs(yawDiff) < 30.0;
     }
+
     public static boolean playerOverAir() {
         double x = mc.thePlayer.posX;
         double y = mc.thePlayer.posY - 1.0D;
@@ -73,11 +99,15 @@ public class PlayerUtils implements IMethods {
         try {
             EntityPlayer teamMate = (EntityPlayer) entity;
             if (mc.thePlayer.isOnSameTeam(teamMate) ||
-                    mc.thePlayer.getDisplayName().getUnformattedText().startsWith(teamMate.getDisplayName().getUnformattedText().substring(0, 2)) ||
-                    getNetworkDisplayName().startsWith(teamMate.getDisplayName().getUnformattedText().substring(0, 2))) {
+                    mc.thePlayer.getDisplayName().getUnformattedText()
+                            .startsWith(teamMate.getDisplayName().getUnformattedText().substring(0, 2))
+                    ||
+                    getNetworkDisplayName()
+                            .startsWith(teamMate.getDisplayName().getUnformattedText().substring(0, 2))) {
                 return true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return false;
     }
 
@@ -85,7 +115,8 @@ public class PlayerUtils implements IMethods {
         try {
             NetworkPlayerInfo playerInfo = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
             return ScorePlayerTeam.formatPlayerName(playerInfo.getPlayerTeam(), playerInfo.getGameProfile().getName());
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return "";
     }
 }

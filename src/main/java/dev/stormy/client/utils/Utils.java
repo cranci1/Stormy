@@ -24,34 +24,36 @@ public class Utils {
    private static final Random rand = new Random();
    public static final Minecraft mc = Minecraft.getMinecraft();
 
-   public static boolean inFov(float fov, BlockPos blockPos) {
-      return inFov(fov, blockPos.getX(), blockPos.getZ());
-   }
-
+   /**
+    * Checks if a position or entity is within the player's FOV.
+    */
    public static boolean inFov(float fov, Entity entity) {
-      return inFov(fov, entity.posX, entity.posZ);
+      return inFov(mc.thePlayer, fov, entity.posX, entity.posZ);
    }
 
-   public static boolean inFov(float fov, final double posX, final double posZ) {
+   public static boolean inFov(float fov, double posX, double posZ) {
       return inFov(mc.thePlayer, fov, posX, posZ);
    }
 
-   public static boolean inFov(Entity viewPoint, float fov, final double posX, final double posZ) {
-      fov *= 0.5;
-      final double wrapAngleTo180_double = MathHelper
-            .wrapAngleTo180_double((viewPoint.rotationYaw - angle(posX, posZ)) % 360.0f);
-      if (wrapAngleTo180_double > 0.0) {
-         if (wrapAngleTo180_double < fov) {
-            return true;
-         }
-      } else if (wrapAngleTo180_double > -fov) {
-         return true;
-      }
-      return false;
+   public static boolean inFov(Entity viewPoint, float fov, double posX, double posZ) {
+      // Calculate angle between player and target
+      double dx = posX - viewPoint.posX;
+      double dz = posZ - viewPoint.posZ;
+      double angleToTarget = Math.toDegrees(Math.atan2(dz, dx));
+      double playerYaw = MathHelper.wrapAngleTo180_double(viewPoint.rotationYaw);
+
+      // Calculate difference and normalize
+      double angleDiff = MathHelper.wrapAngleTo180_double(angleToTarget - playerYaw);
+      return Math.abs(angleDiff) <= fov / 2.0;
    }
 
-   public static float angle(final double n, final double n2) {
-      return (float) (Math.atan2(n - mc.thePlayer.posX, n2 - mc.thePlayer.posZ) * 57.295780181884766 * -1.0);
+   /**
+    * Returns the yaw angle from the player to the given position.
+    */
+   public static float angle(double posX, double posZ) {
+      double dx = posX - mc.thePlayer.posX;
+      double dz = posZ - mc.thePlayer.posZ;
+      return (float) Math.toDegrees(Math.atan2(dz, dx));
    }
 
    public static class Java {
