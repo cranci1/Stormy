@@ -27,8 +27,6 @@ public class AutoClicker extends Module {
     public static SliderSetting maxCPS;
     public static SliderSetting jitterAmount;
     public static SliderSetting blockHitChance;
-    public static SliderSetting minBlockHitDelay;
-    public static SliderSetting maxBlockHitDelay;
     public static TickSetting breakBlocks;
     public static TickSetting hitSelect;
     public static TickSetting weaponOnly;
@@ -57,8 +55,6 @@ public class AutoClicker extends Module {
         this.registerSetting(maxCPS = new SliderSetting("Max CPS", 12.0D, 1.0D, 20.0D, 0.5D));
         this.registerSetting(jitterAmount = new SliderSetting("Jitter", 0.0D, 0.0D, 3.0D, 0.1D));
         this.registerSetting(blockHitChance = new SliderSetting("Block Hit %", 0.0D, 0.0D, 100.0D, 1.0D));
-        this.registerSetting(minBlockHitDelay = new SliderSetting("Min Block Hit Hold", 20.0D, 10.0D, 200.0D, 1.0D));
-        this.registerSetting(maxBlockHitDelay = new SliderSetting("Max Block Hit Hold", 40.0D, 10.0D, 200.0D, 1.0D));
         this.registerSetting(breakBlocks = new TickSetting("Break blocks", false));
         this.registerSetting(hitSelect = new TickSetting("Hit Select", false));
         this.registerSetting(weaponOnly = new TickSetting("Weapon Only", false));
@@ -211,19 +207,7 @@ public class AutoClicker extends Module {
 
         if (isBlockHitActive) {
             long blockHitDuration = System.currentTimeMillis() - blockHitStartTime;
-
-            double minDelay = minBlockHitDelay.getInput();
-            double maxDelay = maxBlockHitDelay.getInput();
-
-            if (minDelay > maxDelay) {
-                double temp = minDelay;
-                minDelay = maxDelay;
-                maxDelay = temp;
-            }
-
-            long holdTime = (long) (minDelay + (maxDelay - minDelay) * rand.nextDouble());
-
-            if (blockHitDuration >= holdTime) {
+            if (blockHitDuration >= 20 + rand.nextInt(20)) {
                 KeyBinding.setKeyBindState(rmb, false);
                 HookUtils.setMouseButtonState(1, false);
                 isBlockHitActive = false;
@@ -256,10 +240,12 @@ public class AutoClicker extends Module {
             nextExtraDelayUpdateTime = currentTime + 500L + rand.nextInt(1500);
         }
 
+        // Apply the multiplier if active
         if (multiplierActive) {
             delay = (long) (delay * delayMultiplier);
         }
 
+        // Set next click times - press time and a shorter release time
         nextPressTime = currentTime + delay;
         nextReleaseTime = currentTime + (delay / 2L) - rand.nextInt(10);
     }
