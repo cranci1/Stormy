@@ -1,20 +1,26 @@
 package dev.stormy.client.module.modules.combat;
 
+import dev.stormy.client.main.Stormy;
 import dev.stormy.client.module.Module;
 import dev.stormy.client.module.setting.impl.DescriptionSetting;
 import dev.stormy.client.module.setting.impl.SliderSetting;
 import dev.stormy.client.module.setting.impl.TickSetting;
-import dev.stormy.client.module.modules.client.AntiBot;
+import dev.stormy.client.utils.player.PlayerUtils;
 import me.tryfle.stormy.events.LivingUpdateEvent;
+import net.minecraft.block.BlockLiquid;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.MathHelper;
+import net.minecraft.init.Blocks;
+import net.minecraft.util.BlockPos;
 import net.weavemc.loader.api.event.SubscribeEvent;
 import org.lwjgl.input.Mouse;
 
+@SuppressWarnings("unused")
 public class AimAssist extends Module {
-    private SliderSetting speed, fov, distance;
-    private TickSetting clickAim, weaponOnly, aimInvis, blatantMode, ignoreTeammates;
+    public static SliderSetting speed, fov, distance;
+    public static TickSetting clickAim, weaponOnly, aimInvis, breakBlocks;
+    public boolean breakHeld = false;
 
     public AimAssist() {
         super("AimAssist", ModuleCategory.Combat, 0);
@@ -22,113 +28,92 @@ public class AimAssist extends Module {
         this.registerSetting(speed = new SliderSetting("Speed", 45.0D, 1.0D, 100.0D, 1.0D));
         this.registerSetting(fov = new SliderSetting("FOV", 90.0D, 15.0D, 180.0D, 1.0D));
         this.registerSetting(distance = new SliderSetting("Distance", 4.5D, 1.0D, 10.0D, 0.5D));
-        this.registerSetting(clickAim = new TickSetting("Click aim", true));
+        this.registerSetting(clickAim = new TickSetting("Clicking only", true));
         this.registerSetting(weaponOnly = new TickSetting("Weapon only", false));
         this.registerSetting(aimInvis = new TickSetting("Aim at invis", false));
-        this.registerSetting(blatantMode = new TickSetting("Blatant mode", false));
-        this.registerSetting(ignoreTeammates = new TickSetting("Ignore teammates", false));
+        this.registerSetting(breakBlocks = new TickSetting("Break Blocks", true));
     }
 
-    @SubscribeEvent
-    public void onUpdate(LivingUpdateEvent e) {
-        if (mc.thePlayer == null || mc.currentScreen != null || !mc.inGameHasFocus)
-            return;
-        if (mc.objectMouseOver != null
-                && mc.objectMouseOver.typeOfHit == net.minecraft.util.MovingObjectPosition.MovingObjectType.BLOCK
-                && mc.gameSettings.keyBindAttack.isKeyDown())
-            return;
-        if (weaponOnly.isToggled() && !isPlayerHoldingWeapon())
-            return;
-        if (clickAim.isToggled() && !Mouse.isButtonDown(0))
-            return;
 
-        Entity en = getEnemy();
-        if (en != null) {
-            if (blatantMode.isToggled()) {
-                aimDirect(en);
-            } else {
-                double yawDiff = getYawDifference(en);
-                if (Math.abs(yawDiff) > 1.0D) {
-                    float val = (float) (-(yawDiff / (101.0D - speed.getInput())));
-                    mc.thePlayer.rotationYaw += val;
-                    mc.thePlayer.rotationYaw = MathHelper.wrapAngleTo180_float(mc.thePlayer.rotationYaw);
+    @SubscribeEvent
+    public void onUpdateCenter(LivingUpdateEvent e) {
+        if (mc.thePlayer == null
+                || mc.currentScreen != null
+                || !mc.inGameHasFocus
+                || (weaponOnly.isToggled() && PlayerUtils.isPlayerHoldingWeapon())
+                || (breakBlocks.isToggled() && breakBlock())
+        ) return;
+
+        if (!clickAim.isToggled() ||
+                (Stormy.moduleManager.getModuleByClazz(AutoClicker.class).isEnabled() && Mouse.isButtonDown(0)) ||
+                Mouse.isButtonDown(0)
+        ) {
+            Entity en = this.getEnemy();
+            if (en != null) {
+                double n = n(en);
+                if (n > 1.0D || n < -1.0D) {
+                    float val = (float) (-(n / (101.0D - speed.getInput())));
+                    mc.thePlayer.rotationYaw += val / 2;
                 }
             }
         }
     }
 
-    private Entity getEnemy() {
-        final int fovValue = (int) fov.getInput();
-        EntityPlayer closest = null;
-        double closestDist = Double.MAX_VALUE;
-
-        for (final EntityPlayer entityPlayer : mc.theWorld.playerEntities) {
-            if (!isValidTarget(entityPlayer, fovValue))
+    public Entity getEnemy() {
+        int fov = (int) AimAssist.fov.getInput();
+        for (EntityPlayer en : mc.theWorld.playerEntities) {
+            if (!isTarget(en)) {
                 continue;
-            double dist = mc.thePlayer.getDistanceToEntity(entityPlayer);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = entityPlayer;
+            } else if (!aimInvis.isToggled() && en.isInvisible()) {
+                continue;
+            } else if ((double) mc.thePlayer.getDistanceToEntity(en) > distance.getInput()) {
+                continue;
+            }
+            return en;
+        }
+        return null;
+    }
+
+    public static boolean fov(Entity entity, float fov) {
+        fov = (float) ((double) fov * 0.5D);
+        double v = ((double) (mc.thePlayer.rotationYaw - m(entity)) % 360.0D + 540.0D) % 360.0D - 180.0D;
+        return v > 0.0D && v < (double) fov || (double) (-fov) < v && v < 0.0D;
+    }
+
+    public static double n(Entity en) {
+        return ((double) (mc.thePlayer.rotationYaw - m(en)) % 360.0D + 540.0D) % 360.0D - 180.0D;
+    }
+
+    public static float m(Entity ent) {
+        double x = ent.posX - mc.thePlayer.posX;
+        double z = ent.posZ - mc.thePlayer.posZ;
+        double yaw = Math.atan2(x, z) * 57.2957795D;
+        return (float) (yaw * -1.0D);
+    }
+
+    public boolean breakBlock() {
+        if (breakBlocks.isToggled() && mc.objectMouseOver != null) {
+            BlockPos p = mc.objectMouseOver.getBlockPos();
+            if (p != null && Mouse.isButtonDown(0)) {
+                if (mc.theWorld.getBlockState(p).getBlock() != Blocks.air && !(mc.theWorld.getBlockState(p).getBlock() instanceof BlockLiquid)) {
+                    if (!breakHeld) {
+                        int e = mc.gameSettings.keyBindAttack.getKeyCode();
+                        KeyBinding.setKeyBindState(e, true);
+                        KeyBinding.onTick(e);
+                        breakHeld = true;
+                    }
+                    return true;
+                }
+                if (breakHeld) {
+                    breakHeld = false;
+                }
             }
         }
-        return closest;
+        return false;
     }
 
-    private boolean isValidTarget(EntityPlayer entityPlayer, int fovValue) {
-        if (entityPlayer == mc.thePlayer || entityPlayer.deathTime != 0)
-            return false;
-        if (ignoreTeammates.isToggled() && isTeamMate(entityPlayer))
-            return false;
-        if (!aimInvis.isToggled() && entityPlayer.isInvisible())
-            return false;
-        if (mc.thePlayer.getDistanceToEntity(entityPlayer) > distance.getInput())
-            return false;
-        if (AntiBot.bot(entityPlayer))
-            return false;
-        if (!blatantMode.isToggled() && fovValue != 360 && !inFov(fovValue, entityPlayer))
-            return false;
-        return true;
-    }
-
-    private boolean isPlayerHoldingWeapon() {
-        if (mc.thePlayer == null || mc.thePlayer.getHeldItem() == null)
-            return false;
-        String itemName = mc.thePlayer.getHeldItem().getDisplayName().toLowerCase();
-        return itemName.contains("sword") || itemName.contains("axe") || itemName.contains("bow");
-    }
-
-    private boolean isTeamMate(EntityPlayer other) {
-        if (mc.thePlayer.getDisplayName() == null || other.getDisplayName() == null)
-            return false;
-        String myName = mc.thePlayer.getDisplayName().getFormattedText();
-        String otherName = other.getDisplayName().getFormattedText();
-        // Compare color code prefix
-        return myName.length() > 2 && otherName.length() > 2
-                && myName.substring(0, 2).equals(otherName.substring(0, 2));
-    }
-
-    private boolean inFov(int fov, Entity target) {
-        float halfFov = fov / 2.0F;
-        double yawToTarget = getYawToEntity(target);
-        double diff = MathHelper.wrapAngleTo180_double(yawToTarget - mc.thePlayer.rotationYaw);
-        return diff >= -halfFov && diff <= halfFov;
-    }
-
-    private double getYawToEntity(Entity entity) {
-        double dx = entity.posX - mc.thePlayer.posX;
-        double dz = entity.posZ - mc.thePlayer.posZ;
-        double yaw = Math.atan2(dx, dz) * (180.0D / Math.PI);
-        return -yaw;
-    }
-
-    private double getYawDifference(Entity entity) {
-        double yawToTarget = getYawToEntity(entity);
-        double diff = MathHelper.wrapAngleTo180_double(mc.thePlayer.rotationYaw - yawToTarget);
-        return diff;
-    }
-
-    private void aimDirect(Entity entity) {
-        double yawToTarget = getYawToEntity(entity);
-        mc.thePlayer.rotationYaw = (float) yawToTarget;
+    public boolean isTarget(EntityPlayer en) {
+        if (en == mc.thePlayer) return false;
+        return en.deathTime == 0;
     }
 }
