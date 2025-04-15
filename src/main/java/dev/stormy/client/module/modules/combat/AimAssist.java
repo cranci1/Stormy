@@ -25,7 +25,7 @@ public class AimAssist extends Module {
     public AimAssist() {
         super("AimAssist", ModuleCategory.Combat, 0);
         this.registerSetting(new DescriptionSetting("Aims at enemies."));
-        this.registerSetting(speed = new SliderSetting("Speed", 1.0D, 0.1D, 2.0D, 1.0D));
+        this.registerSetting(speed = new SliderSetting("Speed", 1.0D, 0.1D, 2.0D, 0.1D));
         this.registerSetting(fov = new SliderSetting("FOV", 90.0D, 15.0D, 180.0D, 1.0D));
         this.registerSetting(distance = new SliderSetting("Distance", 4.5D, 1.0D, 10.0D, 0.5D));
         this.registerSetting(clickAim = new TickSetting("Clicking only", true));
@@ -51,6 +51,16 @@ public class AimAssist extends Module {
                 double n = n(en);
                 if (n > 1.0D || n < -1.0D) {
                     float val = (float) (-(n / (101.0D - speed.getInput())));
+
+                    float strafe = mc.thePlayer.moveStrafing;
+                    if (strafe != 0) {
+                        val += -strafe * 0.03f;
+                    }
+
+                    double randValue = Math.random() - 0.5;
+                    float pitchOffset = (float) (randValue * 0.03f);
+                    mc.thePlayer.rotationPitch += pitchOffset;
+
                     mc.thePlayer.rotationYaw += val / 2;
                 }
             }
