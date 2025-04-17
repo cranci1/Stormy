@@ -9,7 +9,6 @@
     "IS12PacketEntityVelocity",
     "MinecraftMixin",
     "MixinEntityPlayerSP",
-    "NetworkManagerMixin",
     "RendererLivingEntityMixin",
     "RenderGlobalMixin",
     "IMixinMinecraft"
