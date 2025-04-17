@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(priority = 800, value = EntityLivingBase.class)
+@Mixin(EntityLivingBase.class)
 public class EntityLivingBaseMixin {
     @Inject(method = "onUpdate", at = @At("HEAD"))
     public void injectLivingUpdateEventPre(final CallbackInfo ci) {
