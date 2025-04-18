@@ -1,11 +1,8 @@
 {
   "mixinConfigs": [
-    "stormy.mixins.json"
+    "base.mixins.json"
   ],
   "entrypoints": [
-    "me.tryfle.stormy.Main"
-  ],
-  "hooks": [
-    "me.tryfle.stormy.hooks.CPSHook"
+    "me.sassan.base.Base"
   ]
 }

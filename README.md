@@ -1,4 +1,5 @@
-# Stormy
-An utily client for the weave loader.
+# BaseClient
+Updated base client for weave
 
-This is a fork of [Tryffle/Stormy](https://github.com/Tryflle/stormy)
+# How to build
+> `gradle > build`
