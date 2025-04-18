@@ -38,17 +38,16 @@ public class Module {
         this.name = name;
         this.description = description;
         this.key = key;
-        this.category = null; // Default category if not provided
+        this.category = null;
     }
 
     public void toggle() {
-        enabled = !enabled;
-
-        if (this.enabled) {
-            onEnable();
-        } else {
+        if (enabled) {
             onDisable();
+        } else {
+            onEnable();
         }
+        enabled = !enabled;
     }
 
     public void onEnable() {

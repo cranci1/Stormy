@@ -2,7 +2,7 @@ package me.sassan.base.impl.module.combact;
 
 import me.sassan.base.api.module.Module;
 import me.sassan.base.api.setting.impl.*;
-import net.weavemc.loader.api.event.EventBus;
+import net.weavemc.loader.api.event.SubscribeEvent;
 import net.weavemc.loader.api.event.TickEvent;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.input.Keyboard;
@@ -18,7 +18,6 @@ import java.lang.reflect.Method;
 import java.util.Random;
 
 public class AutoClicker extends Module {
-    // Settings
     private final DoubleSliderSetting cpsRange = new DoubleSliderSetting("CPS Range", 10.0, 12.0, 1.0, 20.0, 0.5);
     private final SliderSetting jitterAmount = new SliderSetting("Jitter", 0.0, 0.0, 3.0, 0.1);
     private final SliderSetting blockHitChance = new SliderSetting("Block Hit %", 10, 0, 100, 1);
@@ -30,7 +29,6 @@ public class AutoClicker extends Module {
     private final BooleanSetting blocksOnly = new BooleanSetting("Blocks Only", false);
     private final BooleanSetting inventoryFill = new BooleanSetting("Inventory Fill", false);
 
-    // Click timing variables
     private long nextPressTime = 0L;
     private long nextReleaseTime = 0L;
     private long nextMultiplierUpdateTime = 0L;
@@ -41,7 +39,6 @@ public class AutoClicker extends Module {
     private boolean isBlockHitActive = false;
     private boolean isHoldingBlock = false;
 
-    // Add for block hit simulation without threads
     private long useItemReleaseTime = 0L;
     private boolean useItemKeyHeld = false;
 
@@ -61,7 +58,6 @@ public class AutoClicker extends Module {
         this.addSetting(blockHitChance);
         this.addSetting(hitSelect);
 
-        // Get mouseClicked method from GuiScreen for inventory filling
         try {
             this.guiScreenMouseClick = net.minecraft.client.gui.GuiScreen.class.getDeclaredMethod(
                     "mouseClicked", Integer.TYPE, Integer.TYPE, Integer.TYPE);
@@ -77,13 +73,87 @@ public class AutoClicker extends Module {
         isBlockHitActive = Mouse.isButtonDown(1);
         isHoldingBlock = false;
         resetClickTimers();
+    }
 
-        // Register tick listener
-        EventBus.subscribe(TickEvent.class, event -> {
-            if (isEnabled()) {
-                onTick();
+    @SubscribeEvent
+    public void onTick(TickEvent event) {
+        if (isEnabled()) {
+            onTickInternal();
+        }
+    }
+
+    private void onTickInternal() {
+        if (!isEnabled() || mc.thePlayer == null) {
+            return;
+        }
+
+        if (useItemKeyHeld && System.currentTimeMillis() >= useItemReleaseTime) {
+            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
+            useItemKeyHeld = false;
+        }
+
+        if (mc.thePlayer.isUsingItem()) {
+            resetClickTimers();
+            return;
+        }
+
+        if (inventoryFill.getValue() && mc.currentScreen instanceof GuiInventory) {
+            if (Mouse.isButtonDown(0) && (Keyboard.isKeyDown(54) || Keyboard.isKeyDown(42))) { // Shift key pressed
+                if (nextPressTime != 0L && nextReleaseTime != 0L) {
+                    if (System.currentTimeMillis() > nextReleaseTime) {
+                        simulateInventoryClick();
+                        updateClickDelay();
+                    }
+                } else {
+                    updateClickDelay();
+                }
+            } else {
+                resetClickTimers();
             }
-        });
+            return;
+        }
+
+        if (mc.currentScreen != null) {
+            resetClickTimers();
+            return;
+        }
+
+        if (leftClick.getValue() && Mouse.isButtonDown(0)) {
+            if (!shouldAttack())
+                return;
+
+            if (breakBlocks.getValue() && mc.objectMouseOver != null) {
+                BlockPos pos = mc.objectMouseOver.getBlockPos();
+                if (pos != null) {
+                    Block block = mc.theWorld.getBlockState(pos).getBlock();
+                    if (block != Blocks.air && !(block instanceof BlockLiquid)) {
+                        if (!isHoldingBlock) {
+                            KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), true);
+                            KeyBinding.onTick(mc.gameSettings.keyBindAttack.getKeyCode());
+                            isHoldingBlock = true;
+                        }
+                        return;
+                    }
+
+                    if (isHoldingBlock) {
+                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
+                        isHoldingBlock = false;
+                    }
+                }
+            }
+
+            performClick(mc.gameSettings.keyBindAttack.getKeyCode(), 0);
+        } else if (rightClick.getValue() && Mouse.isButtonDown(1)) {
+            if (!shouldRightClick())
+                return;
+            performClick(mc.gameSettings.keyBindUseItem.getKeyCode(), 1);
+        } else {
+            resetClickTimers();
+            if (isHoldingBlock) {
+                KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
+                isHoldingBlock = false;
+            }
+        }
     }
 
     @Override
@@ -115,7 +185,6 @@ public class AutoClicker extends Module {
             return false;
         }
         if (hitSelect.getValue()) {
-            // Implement hit select logic if needed
             return true;
         }
         return true;
@@ -144,88 +213,6 @@ public class AutoClicker extends Module {
         }
     }
 
-    public void onTick() {
-        if (!isEnabled() || mc.thePlayer == null) {
-            return;
-        }
-
-        // Release use item key if needed (block hit simulation)
-        if (useItemKeyHeld && System.currentTimeMillis() >= useItemReleaseTime) {
-            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-            useItemKeyHeld = false;
-        }
-
-        // Don't click if player is eating or using an item
-        if (mc.thePlayer.isUsingItem()) {
-            resetClickTimers();
-            return;
-        }
-
-        // Handle inventory fill
-        if (inventoryFill.getValue() && mc.currentScreen instanceof GuiInventory) {
-            if (Mouse.isButtonDown(0) && (Keyboard.isKeyDown(54) || Keyboard.isKeyDown(42))) { // Shift key pressed
-                if (nextPressTime != 0L && nextReleaseTime != 0L) {
-                    if (System.currentTimeMillis() > nextReleaseTime) {
-                        simulateInventoryClick();
-                        updateClickDelay();
-                    }
-                } else {
-                    updateClickDelay();
-                }
-            } else {
-                resetClickTimers();
-            }
-            return;
-        }
-
-        // Skip if in a GUI
-        if (mc.currentScreen != null) {
-            resetClickTimers();
-            return;
-        }
-
-        // Left Click
-        if (leftClick.getValue() && Mouse.isButtonDown(0)) {
-            if (!shouldAttack())
-                return;
-
-            // Handle block breaking
-            if (breakBlocks.getValue() && mc.objectMouseOver != null) {
-                BlockPos pos = mc.objectMouseOver.getBlockPos();
-                if (pos != null) {
-                    Block block = mc.theWorld.getBlockState(pos).getBlock();
-                    if (block != Blocks.air && !(block instanceof BlockLiquid)) {
-                        if (!isHoldingBlock) {
-                            KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), true);
-                            KeyBinding.onTick(mc.gameSettings.keyBindAttack.getKeyCode());
-                            isHoldingBlock = true;
-                        }
-                        return;
-                    }
-
-                    if (isHoldingBlock) {
-                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
-                        isHoldingBlock = false;
-                    }
-                }
-            }
-
-            performClick(mc.gameSettings.keyBindAttack.getKeyCode(), 0);
-        }
-        // Right Click
-        else if (rightClick.getValue() && Mouse.isButtonDown(1)) {
-            if (!shouldRightClick())
-                return;
-            performClick(mc.gameSettings.keyBindUseItem.getKeyCode(), 1);
-        } else {
-            resetClickTimers();
-            if (isHoldingBlock) {
-                KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
-                isHoldingBlock = false;
-            }
-        }
-    }
-
     private void performClick(int key, int mouseButton) {
         applyJitter();
 
@@ -240,7 +227,6 @@ public class AutoClicker extends Module {
             KeyBinding.setKeyBindState(key, true);
             KeyBinding.onTick(key);
 
-            // Handle block hit for left click only - now checks if targeting an entity
             if (mouseButton == 0 && blockHitChance.getValue() > 0.0
                     && rand.nextDouble() * 100 < blockHitChance.getValue()
                     && mc.objectMouseOver != null && mc.objectMouseOver.entityHit != null) {
@@ -265,7 +251,6 @@ public class AutoClicker extends Module {
                 int y = mc.currentScreen.height - Mouse.getY() * mc.currentScreen.height / mc.displayHeight - 1;
                 guiScreenMouseClick.invoke(mc.currentScreen, x, y, 0);
             } catch (Exception ignored) {
-                // Ignore exceptions
             }
         }
     }

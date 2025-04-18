@@ -45,32 +45,34 @@ public class SafeWalk extends Module {
 
     @SubscribeEvent
     public void onTick(TickEvent e) {
-        if (mc.currentScreen != null)
-            return;
-        if (mc.thePlayer == null)
+        if (mc.currentScreen != null || mc.thePlayer == null)
             return;
 
-        boolean shiftTimeActive = shiftTime.getMaxValue() > 0;
+        final boolean shiftTimeActive = shiftTime.getMaxValue() > 0;
+        final boolean holdKey = Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode());
+        final boolean onHoldVal = onHold.getValue();
+        final boolean lookDownVal = lookDown.getValue();
+        final boolean blocksOnlyVal = blocksOnly.getValue();
+        final boolean shiftOnJumpVal = shiftOnJump.getValue();
 
-        if (lookDown.getValue()) {
+        if (lookDownVal) {
             float pitch = mc.thePlayer.rotationPitch;
-            if (pitch < pitchRange.getMinValue() || pitch > pitchRange.getMaxValue()) {
+            double minPitch = pitchRange.getMinValue();
+            double maxPitch = pitchRange.getMaxValue();
+            if (pitch < minPitch || pitch > maxPitch) {
                 shouldBridge = false;
-                if (Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())) {
+                if (holdKey)
                     setShift(true);
-                }
                 return;
             }
         }
 
-        if (onHold.getValue()) {
-            if (!Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())) {
-                shouldBridge = false;
-                return;
-            }
+        if (onHoldVal && !holdKey) {
+            shouldBridge = false;
+            return;
         }
 
-        if (blocksOnly.getValue()) {
+        if (blocksOnlyVal) {
             ItemStack held = mc.thePlayer.getHeldItem();
             if (held == null || !(held.getItem() instanceof ItemBlock)) {
                 if (isShifting) {
@@ -84,27 +86,27 @@ public class SafeWalk extends Module {
         if (mc.thePlayer.onGround) {
             if (playerOverAir()) {
                 if (shiftTimeActive) {
-                    shiftTimerEnd = System.currentTimeMillis() + (long) (shiftTime.getMinValue()
-                            + Math.random() * (shiftTime.getMaxValue() - shiftTime.getMinValue()));
+                    double min = shiftTime.getMinValue();
+                    double max = shiftTime.getMaxValue();
+                    shiftTimerEnd = System.currentTimeMillis() + (long) (min + Math.random() * (max - min));
                 }
                 isShifting = true;
                 setShift(true);
                 shouldBridge = true;
-            } else if (mc.thePlayer.isSneaking() && !Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())
-                    && onHold.getValue()) {
+            } else if (mc.thePlayer.isSneaking() && !holdKey && onHoldVal) {
                 isShifting = false;
                 shouldBridge = false;
                 setShift(false);
-            } else if (onHold.getValue() && !Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())) {
+            } else if (onHoldVal && !holdKey) {
                 isShifting = false;
                 shouldBridge = false;
                 setShift(false);
-            } else if (mc.thePlayer.isSneaking() && Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())
-                    && onHold.getValue() && (!shiftTimeActive || shiftTimerFinished())) {
+            } else if (mc.thePlayer.isSneaking() && holdKey && onHoldVal
+                    && (!shiftTimeActive || shiftTimerFinished())) {
                 isShifting = false;
                 setShift(false);
                 shouldBridge = true;
-            } else if (mc.thePlayer.isSneaking() && !onHold.getValue() && (!shiftTimeActive || shiftTimerFinished())) {
+            } else if (mc.thePlayer.isSneaking() && !onHoldVal && (!shiftTimeActive || shiftTimerFinished())) {
                 isShifting = false;
                 setShift(false);
                 shouldBridge = true;
@@ -112,7 +114,7 @@ public class SafeWalk extends Module {
         } else if (shouldBridge && mc.thePlayer.capabilities.isFlying) {
             setShift(false);
             shouldBridge = false;
-        } else if (shouldBridge && blockRelativeToPlayer(0, -1, 0) instanceof BlockAir && shiftOnJump.getValue()) {
+        } else if (shouldBridge && blockRelativeToPlayer(0, -1, 0) instanceof BlockAir && shiftOnJumpVal) {
             isShifting = true;
             setShift(true);
         } else {

@@ -3,8 +3,6 @@ package me.sassan.base.impl.module.player;
 import me.sassan.base.api.module.Module;
 import me.sassan.base.api.setting.impl.BooleanSetting;
 import me.sassan.base.api.setting.impl.SliderSetting;
-import me.sassan.base.utils.player.PlayerUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.weavemc.loader.api.event.SubscribeEvent;
@@ -14,6 +12,7 @@ import org.lwjgl.input.Keyboard;
 public class FastPlace extends Module {
     private final SliderSetting delaySlider;
     private final BooleanSetting blocksOnly;
+    private final int DEFAULT_DELAY = 4;
 
     public FastPlace() {
         super("FastPlace", "Place blocks faster", Keyboard.KEY_NONE, Category.PLAYER);
@@ -23,28 +22,24 @@ public class FastPlace extends Module {
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.Post event) {
-        if (!isEnabled())
+        if (!isEnabled() || mc.thePlayer == null || mc.theWorld == null || !mc.inGameHasFocus)
             return;
 
-        if (mc.thePlayer != null && mc.theWorld != null && mc.inGameHasFocus) {
-            if (blocksOnly.getValue()) {
-                ItemStack item = mc.thePlayer.getHeldItem();
-                if (item == null || !(item.getItem() instanceof ItemBlock)) {
-                    return;
-                }
+        if (blocksOnly.getValue()) {
+            ItemStack heldItem = mc.thePlayer.getHeldItem();
+            if (heldItem == null || !(heldItem.getItem() instanceof ItemBlock)) {
+                return;
             }
+        }
 
-            if (delaySlider.getValue() == 0) {
-                Minecraft.getMinecraft().rightClickDelayTimer = 0;
-            } else {
-                if (delaySlider.getValue() == 4) {
-                    return;
-                }
+        double delay = delaySlider.getValue();
+        if (delay == DEFAULT_DELAY)
+            return;
 
-                if (Minecraft.getMinecraft().rightClickDelayTimer == 4) {
-                    Minecraft.getMinecraft().rightClickDelayTimer = delaySlider.getValue().intValue();
-                }
-            }
+        if (delay == 0) {
+            mc.rightClickDelayTimer = 0;
+        } else if (mc.rightClickDelayTimer == DEFAULT_DELAY) {
+            mc.rightClickDelayTimer = (int) delay;
         }
     }
 }
