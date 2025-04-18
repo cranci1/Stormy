@@ -1,6 +1,5 @@
 package me.sassan.base.api.module;
 
-import me.sassan.base.impl.module.combact.*;
 import me.sassan.base.impl.module.player.*;
 import me.sassan.base.impl.module.render.*;
 import net.minecraft.client.Minecraft;
@@ -17,9 +16,10 @@ public class ModuleRepo {
     public List<Module> list = new ArrayList<>();
 
     public ModuleRepo() {
-        list.add(new Jump());
-        list.add(new AutoClicker());
+        list.add(new SafeWalk());
+        list.add(new me.sassan.base.impl.module.combact.AutoClicker());
         list.add(new ClickGui());
+        list.add(new ESP());
 
         EventBus.subscribe(KeyboardEvent.class, event -> {
             for (Module m : list) {

@@ -41,6 +41,10 @@ public class AutoClicker extends Module {
     private boolean isBlockHitActive = false;
     private boolean isHoldingBlock = false;
 
+    // Add for block hit simulation without threads
+    private long useItemReleaseTime = 0L;
+    private boolean useItemKeyHeld = false;
+
     private final Random rand = new Random();
     private Method guiScreenMouseClick;
 
@@ -145,6 +149,12 @@ public class AutoClicker extends Module {
             return;
         }
 
+        // Release use item key if needed (block hit simulation)
+        if (useItemKeyHeld && System.currentTimeMillis() >= useItemReleaseTime) {
+            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
+            useItemKeyHeld = false;
+        }
+
         // Don't click if player is eating or using an item
         if (mc.thePlayer.isUsingItem()) {
             resetClickTimers();
@@ -234,17 +244,11 @@ public class AutoClicker extends Module {
             if (mouseButton == 0 && blockHitChance.getValue() > 0.0
                     && rand.nextDouble() * 100 < blockHitChance.getValue()
                     && mc.objectMouseOver != null && mc.objectMouseOver.entityHit != null) {
-                if (isHoldingWeapon()) {
+                if (isHoldingWeapon() && !useItemKeyHeld) {
                     KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
                     KeyBinding.onTick(mc.gameSettings.keyBindUseItem.getKeyCode());
-
-                    new Thread(() -> {
-                        try {
-                            Thread.sleep(15 + rand.nextInt(15));
-                            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-                        } catch (InterruptedException ignored) {
-                        }
-                    }).start();
+                    useItemKeyHeld = true;
+                    useItemReleaseTime = System.currentTimeMillis() + 15 + rand.nextInt(15);
                 }
             }
 

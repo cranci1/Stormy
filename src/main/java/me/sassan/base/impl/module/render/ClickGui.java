@@ -12,7 +12,7 @@ public class ClickGui extends Module {
     private CGui cGui;
 
     public ClickGui() {
-        super("ClickGui", "ClickGui", Keyboard.KEY_P, Category.VISUAL);
+        super("ClickGui", "ClickGui", Keyboard.KEY_RETURN, Category.CLIENT);
     }
 
     @Override
