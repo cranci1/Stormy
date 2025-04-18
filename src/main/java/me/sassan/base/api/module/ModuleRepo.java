@@ -1,6 +1,6 @@
 package me.sassan.base.api.module;
 
-import me.sassan.base.impl.module.player.AutoClicker;
+import me.sassan.base.impl.module.combact.*;
 import me.sassan.base.impl.module.player.*;
 import me.sassan.base.impl.module.render.*;
 import net.minecraft.client.Minecraft;

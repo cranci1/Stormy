@@ -230,9 +230,10 @@ public class AutoClicker extends Module {
             KeyBinding.setKeyBindState(key, true);
             KeyBinding.onTick(key);
 
-            // Handle block hit for left click only
+            // Handle block hit for left click only - now checks if targeting an entity
             if (mouseButton == 0 && blockHitChance.getValue() > 0.0
-                    && rand.nextDouble() * 100 < blockHitChance.getValue()) {
+                    && rand.nextDouble() * 100 < blockHitChance.getValue()
+                    && mc.objectMouseOver != null && mc.objectMouseOver.entityHit != null) {
                 if (isHoldingWeapon()) {
                     KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
                     KeyBinding.onTick(mc.gameSettings.keyBindUseItem.getKeyCode());
