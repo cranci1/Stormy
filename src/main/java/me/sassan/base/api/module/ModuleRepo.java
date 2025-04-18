@@ -1,7 +1,5 @@
 package me.sassan.base.api.module;
 
-import me.sassan.base.impl.module.player.*;
-import me.sassan.base.impl.module.render.*;
 import net.minecraft.client.Minecraft;
 import net.weavemc.loader.api.event.EventBus;
 import net.weavemc.loader.api.event.KeyboardEvent;
@@ -16,10 +14,11 @@ public class ModuleRepo {
     public List<Module> list = new ArrayList<>();
 
     public ModuleRepo() {
-        list.add(new SafeWalk());
+        list.add(new me.sassan.base.impl.module.player.SafeWalk());
         list.add(new me.sassan.base.impl.module.combact.AutoClicker());
-        list.add(new ClickGui());
-        list.add(new ESP());
+        list.add(new me.sassan.base.impl.module.render.ClickGui());
+        list.add(new me.sassan.base.impl.module.render.ArrayList());
+        list.add(new me.sassan.base.impl.module.player.FastPlace());
 
         EventBus.subscribe(KeyboardEvent.class, event -> {
             for (Module m : list) {
