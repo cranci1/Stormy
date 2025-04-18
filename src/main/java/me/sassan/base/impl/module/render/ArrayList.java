@@ -14,7 +14,9 @@ import net.weavemc.loader.api.event.RenderGameOverlayEvent;
 import net.weavemc.loader.api.event.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 import java.awt.*;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ArrayList extends Module {
     private final BooleanSetting background = new BooleanSetting("Background", false);
@@ -26,7 +28,7 @@ public class ArrayList extends Module {
     private final SliderSetting saturation = new SliderSetting("Saturation", 100.0, 0.0, 100.0, 1.0);
     private final SliderSetting brightness = new SliderSetting("Brightness", 100.0, 0.0, 100.0, 1.0);
     private final SliderSetting bgOpacity = new SliderSetting("Bg Opacity", 70.0, 0.0, 100.0, 1.0);
-    private final SliderSetting spacing = new SliderSetting("Spacing", 0.0, 0.0, 5.0, 0.5);
+    private final SliderSetting spacing = new SliderSetting("Spacing", 1.0, 0.0, 5.0, 0.5);
 
     public ArrayList() {
         super("ArrayList", "Shows enabled modules", Keyboard.KEY_NONE, Category.CLIENT);
@@ -51,63 +53,51 @@ public class ArrayList extends Module {
         ScaledResolution sr = new ScaledResolution(mc);
         FontRenderer fr = mc.fontRendererObj;
 
-        List<Module> enabledModules = Base.INSTANCE.moduleRepo.list;
-        int enabledCount = 0;
-        String[] displayTexts = new String[enabledModules.size()];
-        int[] widths = new int[enabledModules.size()];
+        // Get all enabled modules
+        List<Module> enabledModules = Base.INSTANCE.moduleRepo.list.stream()
+                .filter(Module::isEnabled)
+                .collect(Collectors.toList());
 
-        for (int i = 0; i < enabledModules.size(); i++) {
-            Module m = enabledModules.get(i);
-            if (!m.isEnabled())
-                continue;
-            String displayText = getModuleDisplayText(m);
-            if (lowercase.getValue())
+        // Sort modules by text width
+        enabledModules = enabledModules.stream()
+                .sorted(Comparator.comparing(m -> -fr.getStringWidth(getModuleDisplayText(m))))
+                .collect(Collectors.toList());
+
+        // Render
+        int y = 2; // Starting from top of the screen
+
+        // Render modules
+        for (Module module : enabledModules) {
+            String displayText = getModuleDisplayText(module);
+            if (lowercase.getValue()) {
                 displayText = displayText.toLowerCase();
-            displayTexts[enabledCount] = displayText;
-            widths[enabledCount] = fr.getStringWidth(displayText);
-            enabledModules.set(enabledCount, m);
-            enabledCount++;
-        }
-        for (int i = 0; i < enabledCount - 1; i++) {
-            for (int j = i + 1; j < enabledCount; j++) {
-                if (widths[j] > widths[i]) {
-                    // swap
-                    int w = widths[i];
-                    widths[i] = widths[j];
-                    widths[j] = w;
-                    String t = displayTexts[i];
-                    displayTexts[i] = displayTexts[j];
-                    displayTexts[j] = t;
-                    Module m = enabledModules.get(i);
-                    enabledModules.set(i, enabledModules.get(j));
-                    enabledModules.set(j, m);
-                }
             }
-        }
 
-        int y = 2;
-        for (int i = 0; i < enabledCount; i++) {
-            Module module = enabledModules.get(i);
-            String displayText = displayTexts[i];
-            int textWidth = widths[i];
+            int textWidth = fr.getStringWidth(displayText);
             int x = sr.getScaledWidth() - textWidth - 4;
             int height = fr.FONT_HEIGHT + 1;
 
+            // Draw background if enabled - now aligned with the width of each module
             if (background.getValue()) {
-                int bgAlpha = (int) (bgOpacity.getValue() * 2.55);
+                int bgAlpha = (int) (bgOpacity.getValue() * 2.55); // Convert 0-100 to 0-255
                 int bgColor = new Color(0, 0, 0, bgAlpha).getRGB();
                 RenderUtils.drawRect(x - 2, y, textWidth + 4, height, bgColor);
             }
+
+            // Render outline if enabled - aligned with the height of each module
             if (outline.getValue()) {
                 Color outlineColor = getModuleColor(module, y);
                 RenderUtils.drawRect(x - 3, y, 1, height, outlineColor.getRGB());
             }
+
             Color textColor = getModuleColor(module, y);
             if (textShadow.getValue()) {
                 fr.drawStringWithShadow(displayText, x, y + 1, textColor.getRGB());
             } else {
                 fr.drawString(displayText, x, y + 1, textColor.getRGB());
             }
+
+            // Increment Y position for next module
             y += height + spacing.getValue();
         }
     }
@@ -157,12 +147,15 @@ public class ArrayList extends Module {
     }
 
     private Color getModuleColor(Module module, int yOffset) {
+        // Use HSB color model for easier manipulation
         float startHue = (float) colorHue.getMinValue() / 360f;
         float endHue = (float) colorHue.getMaxValue() / 360f;
 
+        // Calculate hue based on position or module name
         float hueOffset = (float) (yOffset % 100) / 100f;
         float hue = startHue + (endHue - startHue) * hueOffset;
 
+        // Ensure hue is in valid range
         if (hue > 1)
             hue -= 1;
         if (hue < 0)

@@ -42,12 +42,13 @@ public class Module {
     }
 
     public void toggle() {
-        if (enabled) {
-            onDisable();
-        } else {
-            onEnable();
-        }
         enabled = !enabled;
+
+        if (this.enabled) {
+            onEnable();
+        } else {
+            onDisable();
+        }
     }
 
     public void onEnable() {

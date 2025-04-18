@@ -12,7 +12,6 @@ import java.util.*;
  */
 public class ModuleRepo {
     public List<Module> list = new ArrayList<>();
-    private final Map<Integer, Module> keyModuleMap = new HashMap<>();
 
     public ModuleRepo() {
         list.add(new me.sassan.base.impl.module.player.SafeWalk());
@@ -21,19 +20,17 @@ public class ModuleRepo {
         list.add(new me.sassan.base.impl.module.render.ArrayList());
         list.add(new me.sassan.base.impl.module.player.FastPlace());
 
-        for (Module m : list) {
-            keyModuleMap.put(m.getKey(), m);
-        }
-
         EventBus.subscribe(KeyboardEvent.class, event -> {
-            if (event.getKeyState())
-                return;
-            Module m = keyModuleMap.get(event.getKeyCode());
-            if (m != null) {
-                m.toggle();
-                Minecraft.getMinecraft().thePlayer.addChatMessage(
-                        new net.minecraft.util.ChatComponentText(
-                                "Toggled " + m.getName() + " to " + m.isEnabled()));
+            for (Module m : list) {
+                if (event.getKeyState())
+                    return;
+
+                if (event.getKeyCode() == m.getKey()) {
+                    m.toggle();
+                    Minecraft.getMinecraft().thePlayer.addChatMessage(
+                            new net.minecraft.util.ChatComponentText(
+                                    "Toggled " + m.getName() + " to " + m.isEnabled()));
+                }
             }
         });
 
