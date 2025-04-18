@@ -418,10 +418,10 @@ public class CGui extends GuiScreen {
                 if (mouseX >= panelX + 15 && mouseX <= panelX + panelWidth - 15
                         && mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
                     if (mouseButton == 0) {
+                        module.toggle();
+                    } else if (mouseButton == 1) {
                         selectedModule = module;
                         settingsScrollY = 0;
-                    } else if (mouseButton == 1) {
-                        module.toggle();
                     }
                     return;
                 }
