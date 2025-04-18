@@ -1,4 +1,4 @@
-rootProject.name = "Stormy"
+rootProject.name = "Seraph"
 
 pluginManagement {
     repositories {

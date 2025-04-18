@@ -1,11 +1,17 @@
 {
   "mixinConfigs": [
-    "stormy.mixins.json"
+    "seraph.mixins.json"
   ],
   "entrypoints": [
-    "me.tryfle.stormy.Main"
+    "club.maxstats.seraph.Main"
   ],
   "hooks": [
-    "me.tryfle.stormy.hooks.CPSHook"
-  ]
+  ],
+  "about": {
+    "name": "Seraph",
+    "version": "1.0.0",
+    "author": "exejar",
+    "description": "Statistic Mod for Hypixel",
+    "website": "https://github.com/exejar/Seraph"
+  }
 }
