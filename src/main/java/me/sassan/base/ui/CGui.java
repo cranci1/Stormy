@@ -24,74 +24,62 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Client GUI with category dropdowns and module management
+ * Modern Client GUI with horizontal tabs and dual-panel layout
  * Based on the Berry client design
  */
 public class CGui extends GuiScreen {
-    private final int backgroundColor = new Color(0, 0, 0, 180).getRGB();
-    private final int categoryTabColor = new Color(0, 0, 0, 200).getRGB();
-    private final int categoryHoverColor = new Color(0, 0, 0, 240).getRGB();
-    private final int accentColor = new Color(30, 144, 255).getRGB();
-    private final int accentColorDarker = new Color(20, 120, 220).getRGB();
-    private final int textColor = new Color(255, 255, 255).getRGB();
-    private final int textColorDarker = new Color(180, 180, 180).getRGB();
-    private final int panelColor = new Color(0, 0, 0, 220).getRGB();
-
-    // GUI dimensions
-    private final int categoryTabWidth = 120;
-    private final int categoryTabHeight = 20;
+    // Dimensions
+    private int guiX = 60, guiY = 60;
+    private int guiWidth = 600, guiHeight = 350;
+    private final int leftPanelWidth = 180;
+    private final int tabHeight = 28;
+    private final int tabWidth = 90;
+    private final int tabPadding = 5;
     private final int moduleHeight = 25;
-    private final int moduleExpandedHeight = 130;
-    private final int padding = 5;
+    private final int settingsPadding = 15;
+    private final int cornerRadius = 8;
 
-    private List<CategoryPanel> categoryPanels = new ArrayList<>();
-    private Map<Category, List<ModuleComponent>> moduleMap = new HashMap<>();
-    private Map<Category, Integer> scrollOffsets = new HashMap<>();
-    private Map<Category, Boolean> expandedCategories = new HashMap<>();
-    private Map<Module, Boolean> expandedModules = new HashMap<>();
-    private Map<Module, Integer> moduleSettingsScroll = new ConcurrentHashMap<>();
+    // Colors
+    private final Color accentColor = new Color(98, 163, 255);
+    private final Color accentColorDarker = new Color(78, 143, 235);
+    private final Color bgColor = new Color(18, 18, 24, 220);
+    private final Color panelColor = new Color(25, 25, 35, 220);
+    private final Color moduleColor = new Color(40, 40, 50, 220);
+    private final Color moduleHoverColor = new Color(50, 50, 60, 220);
+    private final Color textColor = new Color(255, 255, 255);
+    private final Color textColorDarker = new Color(180, 180, 180);
 
-    private Category draggingCategory = null;
-    private int dragX, dragY;
+    // State
+    private Category selectedCategory = Category.COMBAT;
     private Module selectedModule = null;
-    private Setting<?> draggingSetting = null;
     private Module bindingModule = null;
+    private Setting<?> draggingSetting = null;
+    private boolean isDragging = false;
+    private int dragOffsetX, dragOffsetY;
+
+    // Scrolling
+    private int moduleScrollY = 0;
+    private int settingsScrollY = 0;
+    private Map<Module, Integer> moduleSettingsScroll = new ConcurrentHashMap<>();
+    private Map<Category, List<Module>> categoryModules = new HashMap<>();
 
     public CGui() {
-        initializeGUI();
-    }
-
-    private void initializeGUI() {
-        int x = 10;
-
-        for (Category category : Category.values()) {
-            CategoryPanel panel = new CategoryPanel(category, x, 10, categoryTabWidth, 300);
-            categoryPanels.add(panel);
-            expandedCategories.put(category, false);
-            scrollOffsets.put(category, 0);
-            x += categoryTabWidth + 10;
-
-            moduleMap.put(category, new ArrayList<>());
-        }
-
         refreshModules();
     }
 
     public void refreshModules() {
+        categoryModules.clear();
+
         for (Category category : Category.values()) {
-            moduleMap.get(category).clear();
+            categoryModules.put(category, new ArrayList<>());
         }
 
         if (me.sassan.base.Base.INSTANCE != null && me.sassan.base.Base.INSTANCE.moduleRepo != null) {
             for (Module module : me.sassan.base.Base.INSTANCE.moduleRepo.list) {
                 Category category = module.getCategory();
-                List<ModuleComponent> categoryModules = moduleMap.get(category);
-
-                if (categoryModules != null) {
-                    ModuleComponent moduleComponent = new ModuleComponent(module, 0, 0, categoryTabWidth - 10,
-                            moduleHeight);
-                    categoryModules.add(moduleComponent);
-                    expandedModules.put(module, false);
+                List<Module> modules = categoryModules.get(category);
+                if (modules != null) {
+                    modules.add(module);
                 }
             }
         }
@@ -100,27 +88,288 @@ public class CGui extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawGlassBackground();
-
-        for (CategoryPanel panel : categoryPanels) {
-            panel.drawPanel(mouseX, mouseY);
-        }
-
+        drawGui(mouseX, mouseY);
+        handleDragging(mouseX, mouseY);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void drawGlassBackground() {
         ScaledResolution sr = new ScaledResolution(mc);
-        int w = sr.getScaledWidth();
-        int h = sr.getScaledHeight();
+        drawGradientRect(0, 0, sr.getScaledWidth(), sr.getScaledHeight(),
+                new Color(0, 0, 0, 120).getRGB(),
+                new Color(0, 0, 0, 90).getRGB());
+    }
 
-        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    private void drawGui(int mouseX, int mouseY) {
+        // Main container
+        RenderUtils.drawRoundedRect(guiX, guiY, guiWidth, guiHeight, cornerRadius, bgColor.getRGB());
 
-        int glassColor = new Color(255, 255, 255, 70).getRGB();
-        RenderUtils.drawRoundedRect(0, 0, w, h, 16, glassColor);
+        // Draw tabs
+        drawCategoryTabs(mouseX, mouseY);
 
-        GL11.glPopAttrib();
+        // Left panel (modules)
+        RenderUtils.drawRoundedRect(guiX + 10, guiY + 10, leftPanelWidth, guiHeight - 20, cornerRadius,
+                panelColor.getRGB());
+        drawModulesPanel(mouseX, mouseY);
+
+        // Right panel (settings)
+        if (selectedModule != null) {
+            int rightPanelX = guiX + leftPanelWidth + 20;
+            int rightPanelWidth = guiWidth - leftPanelWidth - 30;
+            RenderUtils.drawRoundedRect(rightPanelX, guiY + 10, rightPanelWidth, guiHeight - 20, cornerRadius,
+                    panelColor.getRGB());
+            drawSettingsPanel(mouseX, mouseY);
+        }
+    }
+
+    private void drawCategoryTabs(int mouseX, int mouseY) {
+        int tabX = guiX + 20;
+        int tabY = guiY - tabHeight - 5;
+
+        for (Category category : Category.values()) {
+            boolean isSelected = category == selectedCategory;
+            boolean isHovered = mouseX >= tabX && mouseX <= tabX + tabWidth
+                    && mouseY >= tabY && mouseY <= tabY + tabHeight;
+
+            Color tabColor = isSelected ? accentColor : new Color(30, 30, 40);
+            if (isHovered && !isSelected) {
+                tabColor = new Color(40, 40, 50);
+            }
+
+            RenderUtils.drawRoundedRect(tabX, tabY, tabWidth, tabHeight, cornerRadius, tabColor.getRGB());
+
+            String name = formatCategoryName(category);
+            RenderUtils.drawString(mc.fontRendererObj, name,
+                    tabX + (tabWidth - mc.fontRendererObj.getStringWidth(name)) / 2,
+                    tabY + (tabHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
+                    isSelected ? 0xFFFFFFFF : 0xFFAAAAAA);
+
+            tabX += tabWidth + tabPadding;
+        }
+    }
+
+    private String formatCategoryName(Category category) {
+        String name = category.name();
+        return name.charAt(0) + name.substring(1).toLowerCase();
+    }
+
+    private void drawModulesPanel(int mouseX, int mouseY) {
+        int panelX = guiX + 10;
+        int panelY = guiY + 10;
+        int panelWidth = leftPanelWidth;
+        int panelHeight = guiHeight - 20;
+
+        // Panel title
+        RenderUtils.drawString(mc.fontRendererObj, formatCategoryName(selectedCategory),
+                panelX + 15, panelY + 15, textColor.getRGB());
+
+        // Draw modules
+        GL11Util.startScissor(panelX + 10, panelY + 30, panelWidth - 20, panelHeight - 40);
+
+        List<Module> modules = categoryModules.get(selectedCategory);
+        int moduleY = panelY + 30 - moduleScrollY;
+
+        if (modules != null) {
+            for (Module module : modules) {
+                if (moduleY + moduleHeight >= panelY + 30 && moduleY <= panelY + panelHeight - 10) {
+                    boolean isSelected = module == selectedModule;
+                    boolean isHovered = mouseX >= panelX + 15 && mouseX <= panelX + panelWidth - 15
+                            && mouseY >= moduleY && mouseY <= moduleY + moduleHeight;
+
+                    Color moduleBgColor = isSelected ? accentColor
+                            : (module.isEnabled() ? accentColorDarker : (isHovered ? moduleHoverColor : moduleColor));
+
+                    RenderUtils.drawRoundedRect(panelX + 15, moduleY, panelWidth - 30, moduleHeight, 4,
+                            moduleBgColor.getRGB());
+
+                    RenderUtils.drawString(mc.fontRendererObj, module.getName(),
+                            panelX + 25, moduleY + (moduleHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
+                            textColor.getRGB());
+                }
+
+                moduleY += moduleHeight + 5;
+            }
+        }
+
+        GL11Util.endScissor();
+    }
+
+    private void drawSettingsPanel(int mouseX, int mouseY) {
+        if (selectedModule == null)
+            return;
+
+        int rightPanelX = guiX + leftPanelWidth + 20;
+        int rightPanelWidth = guiWidth - leftPanelWidth - 30;
+
+        // Panel title
+        RenderUtils.drawString(mc.fontRendererObj, selectedModule.getName() + " Settings",
+                rightPanelX + 15, guiY + 25, textColor.getRGB());
+
+        // Settings area
+        GL11Util.startScissor(rightPanelX + 10, guiY + 45, rightPanelWidth - 20, guiHeight - 55);
+
+        int settingsY = guiY + 45 - settingsScrollY;
+
+        // Module bind button
+        int buttonColor = bindingModule == selectedModule ? accentColor.getRGB() : new Color(50, 50, 60, 180).getRGB();
+        RenderUtils.drawRoundedRect(rightPanelX + 15, settingsY, rightPanelWidth - 30, 25, 4, buttonColor);
+
+        String bindText = bindingModule == selectedModule ? "Press a key..."
+                : "Bind: " + Keyboard.getKeyName(selectedModule.getKey());
+        RenderUtils.drawString(mc.fontRendererObj, bindText,
+                rightPanelX + 25, settingsY + (25 - mc.fontRendererObj.FONT_HEIGHT) / 2, textColor.getRGB());
+
+        settingsY += 35;
+
+        // Module settings
+        if (selectedModule.getSettings() != null) {
+            for (Setting<?> setting : selectedModule.getSettings()) {
+                if (setting instanceof BooleanSetting) {
+                    drawBooleanSetting((BooleanSetting) setting, rightPanelX + 15, settingsY, rightPanelWidth - 30);
+                    settingsY += 30;
+                } else if (setting instanceof SliderSetting) {
+                    drawSliderSetting((SliderSetting) setting, rightPanelX + 15, settingsY, rightPanelWidth - 30);
+                    settingsY += 45;
+                } else if (setting instanceof DoubleSliderSetting) {
+                    drawDoubleSliderSetting((DoubleSliderSetting) setting, rightPanelX + 15, settingsY,
+                            rightPanelWidth - 30);
+                    settingsY += 45;
+                } else {
+                    RenderUtils.drawString(mc.fontRendererObj, setting.getName() + ": " + setting.getValue(),
+                            rightPanelX + 25, settingsY, textColor.getRGB());
+                    settingsY += 25;
+                }
+            }
+        }
+
+        GL11Util.endScissor();
+    }
+
+    private void drawBooleanSetting(BooleanSetting setting, int x, int y, int width) {
+        // Setting name
+        RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 10, y + 5, textColor.getRGB());
+
+        // Toggle switch
+        int toggleWidth = 35;
+        int toggleHeight = 14;
+        int toggleX = x + width - toggleWidth - 10;
+        int toggleY = y + 5;
+
+        boolean enabled = setting.getValue();
+        Color bgColor = new Color(40, 40, 50);
+        Color toggleColor = enabled ? accentColor : new Color(80, 80, 90);
+
+        RenderUtils.drawRoundedRect(toggleX, toggleY, toggleWidth, toggleHeight, toggleHeight / 2, bgColor.getRGB());
+
+        int knobSize = toggleHeight - 4;
+        int knobX = enabled ? toggleX + toggleWidth - knobSize - 2 : toggleX + 2;
+        int knobY = toggleY + 2;
+
+        RenderUtils.drawRoundedRect(knobX, knobY, knobSize, knobSize, knobSize / 2, toggleColor.getRGB());
+    }
+
+    private void drawSliderSetting(SliderSetting setting, int x, int y, int width) {
+        // Setting name and value
+        RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 10, y + 5, textColor.getRGB());
+
+        String valueStr = String.format("%.1f", setting.getValue());
+        RenderUtils.drawString(mc.fontRendererObj, valueStr,
+                x + width - 10 - mc.fontRendererObj.getStringWidth(valueStr), y + 5, textColorDarker.getRGB());
+
+        // Slider track
+        int sliderY = y + 25;
+        int sliderHeight = 6;
+        int sliderWidth = width - 20;
+
+        RenderUtils.drawRoundedRect(x + 10, sliderY, sliderWidth, sliderHeight, sliderHeight / 2,
+                new Color(40, 40, 50).getRGB());
+
+        // Filled portion
+        double percent = (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
+        int fillWidth = Math.max(5, (int) (percent * sliderWidth));
+
+        RenderUtils.drawRoundedRect(x + 10, sliderY, fillWidth, sliderHeight, sliderHeight / 2, accentColor.getRGB());
+
+        // Knob
+        int knobSize = 10;
+        int knobX = x + 10 + fillWidth - knobSize / 2;
+        int knobY = sliderY + (sliderHeight - knobSize) / 2;
+
+        RenderUtils.drawFilledCircle(knobX + knobSize / 2, knobY + knobSize / 2, knobSize / 2, textColor.getRGB());
+    }
+
+    private void drawDoubleSliderSetting(DoubleSliderSetting setting, int x, int y, int width) {
+        // Setting name and value
+        RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 10, y + 5, textColor.getRGB());
+
+        String valueStr = String.format("%.1f - %.1f", setting.getMinValue(), setting.getMaxValue());
+        RenderUtils.drawString(mc.fontRendererObj, valueStr,
+                x + width - 10 - mc.fontRendererObj.getStringWidth(valueStr), y + 5, textColorDarker.getRGB());
+
+        // Slider track
+        int sliderY = y + 25;
+        int sliderHeight = 6;
+        int sliderWidth = width - 20;
+
+        RenderUtils.drawRoundedRect(x + 10, sliderY, sliderWidth, sliderHeight, sliderHeight / 2,
+                new Color(40, 40, 50).getRGB());
+
+        // Filled portion
+        double minPercent = (setting.getMinValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
+        double maxPercent = (setting.getMaxValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
+
+        int minPos = x + 10 + (int) (minPercent * sliderWidth);
+        int maxPos = x + 10 + (int) (maxPercent * sliderWidth);
+
+        if (maxPos > minPos) {
+            RenderUtils.drawRect(minPos, sliderY, maxPos - minPos, sliderHeight, accentColor.getRGB());
+        }
+
+        // Knobs
+        int knobSize = 10;
+        RenderUtils.drawFilledCircle(minPos, sliderY + sliderHeight / 2, knobSize / 2, textColor.getRGB());
+        RenderUtils.drawFilledCircle(maxPos, sliderY + sliderHeight / 2, knobSize / 2, textColor.getRGB());
+    }
+
+    private void handleDragging(int mouseX, int mouseY) {
+        if (isDragging) {
+            guiX = mouseX - dragOffsetX;
+            guiY = mouseY - dragOffsetY;
+        }
+
+        if (draggingSetting != null && Mouse.isButtonDown(0)) {
+            int rightPanelX = guiX + leftPanelWidth + 20;
+            int rightPanelWidth = guiWidth - leftPanelWidth - 30;
+
+            if (draggingSetting instanceof SliderSetting) {
+                SliderSetting slider = (SliderSetting) draggingSetting;
+                int sliderX = rightPanelX + 15 + 10;
+                int sliderWidth = rightPanelWidth - 30 - 20;
+
+                float percent = MathHelper.clamp_float((mouseX - sliderX) / (float) sliderWidth, 0, 1);
+                double value = slider.getMin() + percent * (slider.getMax() - slider.getMin());
+                value = Math.round(value / slider.getIncrement()) * slider.getIncrement();
+                slider.setValue(value);
+            } else if (draggingSetting instanceof DoubleSliderSetting) {
+                DoubleSliderSetting slider = (DoubleSliderSetting) draggingSetting;
+                int sliderX = rightPanelX + 15 + 10;
+                int sliderWidth = rightPanelWidth - 30 - 20;
+
+                float percent = MathHelper.clamp_float((mouseX - sliderX) / (float) sliderWidth, 0, 1);
+                double value = slider.getMin() + percent * (slider.getMax() - slider.getMin());
+                value = Math.round(value / slider.getIncrement()) * slider.getIncrement();
+
+                // Determine which handle is closer to adjust
+                double minVal = slider.getMinValue();
+                double maxVal = slider.getMaxValue();
+
+                if (Math.abs(value - minVal) < Math.abs(value - maxVal)) {
+                    slider.setMinValue(Math.min(value, maxVal - slider.getIncrement()));
+                } else {
+                    slider.setMaxValue(Math.max(value, minVal + slider.getIncrement()));
+                }
+            }
+        }
     }
 
     @Override
@@ -130,55 +379,101 @@ public class CGui extends GuiScreen {
             return;
         }
 
-        for (CategoryPanel panel : categoryPanels) {
-            if (panel.isTabHovered(mouseX, mouseY)) {
-                if (mouseButton == 0) {
-                    Category category = panel.getCategory();
-                    expandedCategories.put(category, !expandedCategories.get(category));
-                    return;
-                } else if (mouseButton == 1) {
-                    draggingCategory = panel.getCategory();
-                    dragX = mouseX - panel.getX();
-                    dragY = mouseY - panel.getY();
+        // Check if clicking the window header for dragging
+        if (mouseButton == 0 && mouseY >= guiY && mouseY <= guiY + 20
+                && mouseX >= guiX && mouseX <= guiX + guiWidth) {
+            isDragging = true;
+            dragOffsetX = mouseX - guiX;
+            dragOffsetY = mouseY - guiY;
+            return;
+        }
+
+        // Check tab clicks
+        int tabX = guiX + 20;
+        int tabY = guiY - tabHeight - 5;
+
+        for (Category category : Category.values()) {
+            if (mouseX >= tabX && mouseX <= tabX + tabWidth
+                    && mouseY >= tabY && mouseY <= tabY + tabHeight) {
+                selectedCategory = category;
+                // Only reset selected module if switching categories
+                if (selectedModule != null && selectedModule.getCategory() != category) {
+                    selectedModule = null;
+                }
+                return;
+            }
+            tabX += tabWidth + tabPadding;
+        }
+
+        // Check module clicks
+        int panelX = guiX + 10;
+        int panelY = guiY + 10;
+        int panelWidth = leftPanelWidth;
+        int moduleY = panelY + 30 - moduleScrollY;
+
+        List<Module> modules = categoryModules.get(selectedCategory);
+
+        if (modules != null) {
+            for (Module module : modules) {
+                if (mouseX >= panelX + 15 && mouseX <= panelX + panelWidth - 15
+                        && mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
+                    if (mouseButton == 0) {
+                        selectedModule = module;
+                        settingsScrollY = 0;
+                    } else if (mouseButton == 1) {
+                        module.toggle();
+                    }
                     return;
                 }
+                moduleY += moduleHeight + 5;
             }
         }
 
-        for (CategoryPanel panel : categoryPanels) {
-            Category category = panel.getCategory();
-            if (expandedCategories.get(category)) {
-                List<ModuleComponent> modules = moduleMap.get(category);
-                int moduleY = panel.getY() + categoryTabHeight + padding - scrollOffsets.get(category);
+        // Check settings clicks
+        if (selectedModule != null) {
+            int rightPanelX = guiX + leftPanelWidth + 20;
+            int rightPanelWidth = guiWidth - leftPanelWidth - 30;
+            int settingsY = guiY + 45 - settingsScrollY;
 
-                for (ModuleComponent moduleComponent : modules) {
-                    int moduleHeight = expandedModules.get(moduleComponent.getModule()) ? this.moduleExpandedHeight
-                            : this.moduleHeight;
+            // Check bind button
+            if (mouseX >= rightPanelX + 15 && mouseX <= rightPanelX + rightPanelWidth - 15
+                    && mouseY >= settingsY && mouseY <= settingsY + 25) {
+                bindingModule = selectedModule;
+                return;
+            }
 
-                    if (mouseX >= panel.getX() + padding && mouseX <= panel.getX() + categoryTabWidth - padding &&
-                            mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
+            settingsY += 35;
 
-                        if (mouseY <= moduleY + this.moduleHeight) {
-                            if (mouseButton == 0) {
-                                moduleComponent.getModule().toggle();
+            // Check settings
+            if (selectedModule.getSettings() != null) {
+                for (Setting<?> setting : selectedModule.getSettings()) {
+                    int settingHeight = 30;
+                    if (setting instanceof SliderSetting || setting instanceof DoubleSliderSetting) {
+                        settingHeight = 45;
+                    }
+
+                    if (mouseY >= settingsY && mouseY <= settingsY + settingHeight) {
+                        if (setting instanceof BooleanSetting) {
+                            if (mouseX >= rightPanelX + rightPanelWidth - 60
+                                    && mouseX <= rightPanelX + rightPanelWidth - 15
+                                    && mouseY >= settingsY && mouseY <= settingsY + 25) {
+                                ((BooleanSetting) setting).setValue(!((BooleanSetting) setting).getValue());
                                 return;
-                            } else if (mouseButton == 1) {
-                                boolean expanded = expandedModules.get(moduleComponent.getModule());
-                                expandedModules.put(moduleComponent.getModule(), !expanded);
-                                selectedModule = moduleComponent.getModule();
+                            }
+                        } else if (setting instanceof SliderSetting) {
+                            if (mouseY >= settingsY + 20 && mouseY <= settingsY + 35) {
+                                draggingSetting = setting;
+                                return;
+                            }
+                        } else if (setting instanceof DoubleSliderSetting) {
+                            if (mouseY >= settingsY + 20 && mouseY <= settingsY + 35) {
+                                draggingSetting = setting;
                                 return;
                             }
                         }
-
-                        if (expandedModules.get(moduleComponent.getModule())) {
-                            handleSettingClick(moduleComponent.getModule(), panel.getX() + padding,
-                                    moduleY + this.moduleHeight, mouseX, mouseY, mouseButton);
-                        }
-
-                        return;
                     }
 
-                    moduleY += moduleHeight + padding;
+                    settingsY += settingHeight;
                 }
             }
         }
@@ -186,78 +481,9 @@ public class CGui extends GuiScreen {
         super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
-    private void handleSettingClick(Module module, int settingsX, int settingsY, int mouseX, int mouseY,
-            int mouseButton) {
-        int scroll = moduleSettingsScroll.getOrDefault(module, 0);
-        int currentY = settingsY + padding - scroll;
-
-        if (mouseX >= settingsX && mouseX <= settingsX + categoryTabWidth - 20 &&
-                mouseY >= currentY && mouseY <= currentY + 20) {
-            bindingModule = module;
-            return;
-        }
-        currentY += 25;
-
-        if (module.getSettings() != null) {
-            for (Setting<?> setting : module.getSettings()) {
-                int settingHeight = (setting instanceof SliderSetting || setting instanceof DoubleSliderSetting) ? 35
-                        : 25;
-                if (mouseY >= currentY && mouseY <= currentY + settingHeight) {
-                    if (setting instanceof BooleanSetting) {
-                        if (mouseX >= settingsX && mouseX <= settingsX + categoryTabWidth - 20 &&
-                                mouseY >= currentY && mouseY <= currentY + 20) {
-                            ((BooleanSetting) setting).setValue(!((BooleanSetting) setting).getValue());
-                            return;
-                        }
-                    } else if (setting instanceof SliderSetting) {
-                        if (mouseX >= settingsX && mouseX <= settingsX + categoryTabWidth - 20 &&
-                                mouseY >= currentY && mouseY <= currentY + 30) {
-                            draggingSetting = setting;
-                            updateSliderValue((SliderSetting) setting, settingsX, currentY, mouseX);
-                            return;
-                        }
-                    } else if (setting instanceof DoubleSliderSetting) {
-                        if (mouseX >= settingsX && mouseX <= settingsX + categoryTabWidth - 20 &&
-                                mouseY >= currentY && mouseY <= currentY + 30) {
-                            draggingSetting = setting;
-                            updateDoubleSliderValue((DoubleSliderSetting) setting, settingsX, currentY, mouseX);
-                            return;
-                        }
-                    }
-                }
-                currentY += settingHeight;
-            }
-        }
-    }
-
-    private void updateSliderValue(SliderSetting slider, int x, int y, int mouseX) {
-        float width = categoryTabWidth - 20;
-        float percent = MathHelper.clamp_float((mouseX - x) / width, 0, 1);
-        double value = slider.getMin() + percent * (slider.getMax() - slider.getMin());
-        value = Math.round(value / slider.getIncrement()) * slider.getIncrement();
-        slider.setValue(value);
-    }
-
-    private void updateDoubleSliderValue(DoubleSliderSetting slider, int x, int y, int mouseX) {
-        float width = categoryTabWidth - 20;
-        float percent = MathHelper.clamp_float((mouseX - x) / width, 0, 1);
-        double value = slider.getMin() + percent * (slider.getMax() - slider.getMin());
-        value = Math.round(value / slider.getIncrement()) * slider.getIncrement();
-
-        // Determine which handle is closer
-        double minVal = slider.getMinValue();
-        double maxVal = slider.getMaxValue();
-
-        if (Math.abs(value - minVal) < Math.abs(value - maxVal)) {
-            slider.setMinValue(Math.min(value, maxVal - slider.getIncrement()));
-        } else {
-            slider.setMaxValue(Math.max(value, minVal + slider.getIncrement()));
-        }
-    }
-
     @Override
     public void mouseReleased(int mouseX, int mouseY, int state) {
-        draggingCategory = null;
+        isDragging = false;
         draggingSetting = null;
         super.mouseReleased(mouseX, mouseY, state);
     }
@@ -271,70 +497,53 @@ public class CGui extends GuiScreen {
             int mouseX = Mouse.getEventX() * this.width / mc.displayWidth;
             int mouseY = this.height - Mouse.getEventY() * this.height / mc.displayHeight - 1;
 
-            for (CategoryPanel panel : categoryPanels) {
-                if (expandedCategories.get(panel.getCategory()) &&
-                        mouseX >= panel.getX() && mouseX <= panel.getX() + categoryTabWidth &&
-                        mouseY >= panel.getY() + categoryTabHeight && mouseY <= panel.getY() + 300) {
+            int panelX = guiX + 10;
+            int panelY = guiY + 10;
+            int panelWidth = leftPanelWidth;
+            int panelHeight = guiHeight - 20;
 
-                    int maxScroll = calculateMaxScroll(panel.getCategory());
-                    int scrollAmount = scroll > 0 ? -10 : 10;
-                    int currentScroll = scrollOffsets.get(panel.getCategory());
-                    scrollOffsets.put(panel.getCategory(),
-                            MathHelper.clamp_int(currentScroll + scrollAmount, 0, maxScroll));
-                    break;
-                }
+            // Scroll modules panel
+            if (mouseX >= panelX && mouseX <= panelX + panelWidth
+                    && mouseY >= panelY + 30 && mouseY <= panelY + panelHeight) {
+                moduleScrollY = MathHelper.clamp_int(
+                        moduleScrollY + (scroll > 0 ? -15 : 15),
+                        0,
+                        Math.max(0, categoryModules.get(selectedCategory).size() * (moduleHeight + 5)
+                                - (panelHeight - 40)));
+                return;
             }
 
-            for (CategoryPanel panel : categoryPanels) {
-                if (expandedCategories.get(panel.getCategory())) {
-                    List<ModuleComponent> modules = moduleMap.get(panel.getCategory());
-                    int moduleY = panel.getY() + categoryTabHeight + padding - scrollOffsets.get(panel.getCategory());
-                    for (ModuleComponent moduleComponent : modules) {
-                        Module module = moduleComponent.getModule();
-                        if (expandedModules.get(module)) {
-                            int settingsX = panel.getX() + padding;
-                            int settingsY = moduleY + moduleHeight;
-                            int settingsW = categoryTabWidth - 10 - padding * 2;
-                            int settingsH = moduleExpandedHeight - moduleHeight - padding * 2;
+            // Scroll settings panel
+            if (selectedModule != null) {
+                int rightPanelX = guiX + leftPanelWidth + 20;
+                int rightPanelWidth = guiWidth - leftPanelWidth - 30;
 
-                            if (mouseX >= settingsX && mouseX <= settingsX + settingsW &&
-                                    mouseY >= settingsY && mouseY <= settingsY + settingsH) {
-                                int maxSettingScroll = calculateMaxSettingsScroll(module);
-                                int settingScroll = moduleSettingsScroll.getOrDefault(module, 0);
-                                int scrollAmount = scroll > 0 ? -15 : 15;
-                                moduleSettingsScroll.put(module,
-                                        MathHelper.clamp_int(settingScroll + scrollAmount, 0, maxSettingScroll));
-                                return;
-                            }
-                        }
-                        moduleY += (expandedModules.get(module) ? moduleExpandedHeight : moduleHeight) + padding;
-                    }
+                if (mouseX >= rightPanelX && mouseX <= rightPanelX + rightPanelWidth
+                        && mouseY >= guiY + 45 && mouseY <= guiY + guiHeight - 10) {
+                    settingsScrollY = MathHelper.clamp_int(
+                            settingsScrollY + (scroll > 0 ? -15 : 15),
+                            0,
+                            calculateSettingsContentHeight() - (guiHeight - 55));
+                    return;
                 }
             }
         }
     }
 
-    private int calculateMaxScroll(Category category) {
-        int totalHeight = 0;
-        List<ModuleComponent> modules = moduleMap.get(category);
+    private int calculateSettingsContentHeight() {
+        int height = 35; // Bind button
 
-        for (ModuleComponent moduleComponent : modules) {
-            boolean expanded = expandedModules.get(moduleComponent.getModule());
-            totalHeight += (expanded ? moduleExpandedHeight : moduleHeight) + padding;
-        }
-
-        return Math.max(0, totalHeight - 280);
-    }
-
-    private int calculateMaxSettingsScroll(Module module) {
-        int totalHeight = 25;
-        if (module.getSettings() != null) {
-            for (Setting<?> setting : module.getSettings()) {
-                totalHeight += (setting instanceof SliderSetting || setting instanceof DoubleSliderSetting) ? 35 : 25;
+        if (selectedModule != null && selectedModule.getSettings() != null) {
+            for (Setting<?> setting : selectedModule.getSettings()) {
+                if (setting instanceof SliderSetting || setting instanceof DoubleSliderSetting) {
+                    height += 45;
+                } else {
+                    height += 30;
+                }
             }
         }
-        int visible = moduleExpandedHeight - moduleHeight - padding * 2;
-        return Math.max(0, totalHeight - visible);
+
+        return height;
     }
 
     @Override
@@ -342,7 +551,7 @@ public class CGui extends GuiScreen {
         if (bindingModule != null) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
                 bindingModule.setKey(Keyboard.KEY_NONE);
-            } else {
+            } else if (keyCode != Keyboard.KEY_BACK && keyCode != Keyboard.KEY_DELETE) {
                 bindingModule.setKey(keyCode);
             }
             bindingModule = null;
@@ -355,304 +564,6 @@ public class CGui extends GuiScreen {
         }
 
         super.keyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    public void updateScreen() {
-        super.updateScreen();
-
-        if (draggingCategory != null) {
-            int mouseX = Mouse.getX() * this.width / mc.displayWidth;
-            int mouseY = this.height - Mouse.getY() * this.height / mc.displayHeight - 1;
-
-            for (CategoryPanel panel : categoryPanels) {
-                if (panel.getCategory() == draggingCategory) {
-                    panel.setX(mouseX - dragX);
-                    panel.setY(mouseY - dragY);
-                    break;
-                }
-            }
-        }
-
-        if (draggingSetting != null && Mouse.isButtonDown(0)) {
-            int mouseX = Mouse.getX() * this.width / mc.displayWidth;
-
-            if (draggingSetting instanceof SliderSetting) {
-                for (CategoryPanel panel : categoryPanels) {
-                    if (expandedCategories.get(panel.getCategory())) {
-                        List<ModuleComponent> modules = moduleMap.get(panel.getCategory());
-                        int moduleY = panel.getY() + categoryTabHeight + padding
-                                - scrollOffsets.get(panel.getCategory());
-
-                        for (ModuleComponent moduleComponent : modules) {
-                            if (expandedModules.get(moduleComponent.getModule()) &&
-                                    moduleComponent.getModule().getSettings().contains(draggingSetting)) {
-
-                                updateSliderValue((SliderSetting) draggingSetting, panel.getX() + padding,
-                                        moduleY + moduleHeight + padding, mouseX);
-                                return;
-                            }
-
-                            moduleY += (expandedModules.get(moduleComponent.getModule()) ? moduleExpandedHeight
-                                    : moduleHeight) + padding;
-                        }
-                    }
-                }
-            } else if (draggingSetting instanceof DoubleSliderSetting) {
-                for (CategoryPanel panel : categoryPanels) {
-                    if (expandedCategories.get(panel.getCategory())) {
-                        List<ModuleComponent> modules = moduleMap.get(panel.getCategory());
-                        int moduleY = panel.getY() + categoryTabHeight + padding
-                                - scrollOffsets.get(panel.getCategory());
-
-                        for (ModuleComponent moduleComponent : modules) {
-                            if (expandedModules.get(moduleComponent.getModule()) &&
-                                    moduleComponent.getModule().getSettings().contains(draggingSetting)) {
-
-                                updateDoubleSliderValue((DoubleSliderSetting) draggingSetting, panel.getX() + padding,
-                                        moduleY + moduleHeight + padding, mouseX);
-                                return;
-                            }
-
-                            moduleY += (expandedModules.get(moduleComponent.getModule()) ? moduleExpandedHeight
-                                    : moduleHeight) + padding;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Class representing a category panel in the GUI
-     */
-    private class CategoryPanel {
-        private Category category;
-        private int x, y;
-        private int width, height;
-
-        public CategoryPanel(Category category, int x, int y, int width, int height) {
-            this.category = category;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-
-        public void drawPanel(int mouseX, int mouseY) {
-            boolean expanded = expandedCategories.get(category);
-            boolean hoveredTab = isTabHovered(mouseX, mouseY);
-
-            int tabBgColor = hoveredTab ? categoryHoverColor : categoryTabColor;
-            RenderUtils.drawRect(x, y, width, categoryTabHeight, tabBgColor);
-
-            RenderUtils.drawRect(x, y, 2, categoryTabHeight, accentColor);
-
-            String tabText = category.name();
-            RenderUtils.drawString(mc.fontRendererObj, tabText,
-                    x + (width - mc.fontRendererObj.getStringWidth(tabText)) / 2,
-                    y + (categoryTabHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
-                    textColor);
-
-            String arrow = expanded ? "▼" : "▶";
-            RenderUtils.drawString(mc.fontRendererObj, arrow,
-                    x + width - 15,
-                    y + (categoryTabHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
-                    textColor);
-
-            if (expanded) {
-                RenderUtils.drawRect(x, y + categoryTabHeight, width, height - categoryTabHeight, panelColor);
-
-                drawModules(mouseX, mouseY);
-            }
-        }
-
-        private void drawModules(int mouseX, int mouseY) {
-            List<ModuleComponent> modules = moduleMap.get(category);
-            int currentY = y + categoryTabHeight + padding - scrollOffsets.get(category);
-
-            GL11Util.startScissor(x, y + categoryTabHeight, width, height - categoryTabHeight);
-
-            for (ModuleComponent moduleComponent : modules) {
-                Module module = moduleComponent.getModule();
-                boolean expanded = expandedModules.get(module);
-                int moduleHeight = expanded ? CGui.this.moduleExpandedHeight : CGui.this.moduleHeight;
-
-                if (currentY + moduleHeight >= y + categoryTabHeight && currentY <= y + height) {
-                    boolean moduleHovered = mouseX >= x + padding && mouseX <= x + width - padding &&
-                            mouseY >= currentY && mouseY <= currentY + CGui.this.moduleHeight;
-                    int moduleBgColor = moduleHovered ? new Color(60, 60, 70).getRGB() : new Color(40, 40, 50).getRGB();
-
-                    if (module.isEnabled()) {
-                        RenderUtils.drawRect(x + padding, currentY, width - padding * 2,
-                                CGui.this.moduleHeight, accentColorDarker);
-                    } else {
-                        RenderUtils.drawRect(x + padding, currentY, width - padding * 2,
-                                CGui.this.moduleHeight, moduleBgColor);
-                    }
-
-                    RenderUtils.drawString(mc.fontRendererObj, module.getName(),
-                            x + padding * 2,
-                            currentY + (CGui.this.moduleHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
-                            textColor);
-
-                    if (!module.getSettings().isEmpty()) {
-                        String arrow = expanded ? "▼" : "▶";
-                        RenderUtils.drawString(mc.fontRendererObj, arrow,
-                                x + width - padding * 3,
-                                currentY + (CGui.this.moduleHeight - mc.fontRendererObj.FONT_HEIGHT) / 2,
-                                textColorDarker);
-                    }
-
-                    if (expanded) {
-                        drawModuleSettings(module, x + padding, currentY + CGui.this.moduleHeight);
-                    }
-                }
-
-                currentY += moduleHeight + padding;
-            }
-
-            GL11Util.endScissor();
-        }
-
-        private void drawModuleSettings(Module module, int settingsX, int settingsY) {
-            int settingsW = width - padding * 2;
-            int settingsH = moduleExpandedHeight - moduleHeight - padding * 2;
-
-            GL11Util.startScissor(settingsX, settingsY, settingsW, settingsH);
-
-            int scroll = moduleSettingsScroll.getOrDefault(module, 0);
-            int currentY = settingsY + padding - scroll;
-
-            int buttonColor = bindingModule == module ? accentColor : new Color(50, 50, 60, 180).getRGB();
-            RenderUtils.drawRoundedRect(settingsX, currentY, settingsW, 20, 8, buttonColor);
-
-            String bindText = bindingModule == module ? "Press key..."
-                    : "Bind: " + Keyboard.getKeyName(module.getKey());
-            RenderUtils.drawString(mc.fontRendererObj, bindText,
-                    settingsX + 8,
-                    currentY + (20 - mc.fontRendererObj.FONT_HEIGHT) / 2,
-                    textColor);
-
-            currentY += 25;
-
-            if (module.getSettings() != null) {
-                for (Setting<?> setting : module.getSettings()) {
-                    if (setting instanceof BooleanSetting) {
-                        drawBooleanSetting((BooleanSetting) setting, settingsX, currentY);
-                        currentY += 25;
-                    } else if (setting instanceof SliderSetting) {
-                        drawSliderSetting((SliderSetting) setting, settingsX, currentY);
-                        currentY += 35;
-                    } else if (setting instanceof DoubleSliderSetting) {
-                        drawDoubleSliderSetting((DoubleSliderSetting) setting, settingsX, currentY);
-                        currentY += 35;
-                    } else {
-                        RenderUtils.drawString(mc.fontRendererObj, setting.getName() + ": " + setting.getValue(),
-                                settingsX + 8, currentY, textColor);
-                        currentY += 25;
-                    }
-                }
-            }
-
-            GL11Util.endScissor();
-        }
-
-        private void drawBooleanSetting(BooleanSetting setting, int x, int y) {
-            RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 5, y, textColor);
-
-            int toggleWidth = 30;
-            int toggleHeight = 12;
-            int toggleX = x + width - padding * 3 - toggleWidth;
-            int toggleY = y + 4;
-
-            boolean enabled = setting.getValue();
-            int backgroundColor = new Color(40, 40, 50).getRGB();
-            int toggleColor = enabled ? accentColor : new Color(100, 100, 110).getRGB();
-
-            RenderUtils.drawRoundedRect(toggleX, toggleY, toggleWidth, toggleHeight, toggleHeight / 2, backgroundColor);
-
-            int knobSize = toggleHeight - 2;
-            int knobX = enabled ? toggleX + toggleWidth - knobSize - 1 : toggleX + 1;
-            RenderUtils.drawFilledCircle(knobX + knobSize / 2, toggleY + toggleHeight / 2, knobSize / 2, toggleColor);
-        }
-
-        private void drawSliderSetting(SliderSetting setting, int x, int y) {
-            RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 5, y, textColor);
-            String valueText = String.format("%.1f", setting.getValue());
-            RenderUtils.drawString(mc.fontRendererObj, valueText,
-                    x + width - padding * 3 - mc.fontRendererObj.getStringWidth(valueText),
-                    y, textColorDarker);
-
-            int sliderY = y + 15;
-            int sliderWidth = width - padding * 4;
-            int sliderHeight = 6;
-
-            RenderUtils.drawRoundedRect(x, sliderY, sliderWidth, sliderHeight, sliderHeight / 2,
-                    new Color(40, 40, 50).getRGB());
-
-            double percent = (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
-            int fillWidth = Math.max(4, (int) (percent * sliderWidth));
-            RenderUtils.drawRoundedRect(x, sliderY, fillWidth, sliderHeight, sliderHeight / 2, accentColor);
-
-            int knobSize = 10;
-            int knobX = x + fillWidth - knobSize / 2;
-            int knobY = sliderY + (sliderHeight - knobSize) / 2;
-            RenderUtils.drawFilledCircle(knobX + knobSize / 2, knobY + knobSize / 2, knobSize / 2, textColor);
-        }
-
-        private void drawDoubleSliderSetting(DoubleSliderSetting setting, int x, int y) {
-            RenderUtils.drawString(mc.fontRendererObj, setting.getName(), x + 5, y, textColor);
-            String valueText = String.format("%.1f-%.1f", setting.getMinValue(), setting.getMaxValue());
-            RenderUtils.drawString(mc.fontRendererObj, valueText,
-                    x + width - padding * 3 - mc.fontRendererObj.getStringWidth(valueText),
-                    y, textColorDarker);
-
-            int sliderY = y + 15;
-            int sliderWidth = width - padding * 4;
-            int sliderHeight = 6;
-
-            RenderUtils.drawRoundedRect(x, sliderY, sliderWidth, sliderHeight, sliderHeight / 2,
-                    new Color(40, 40, 50).getRGB());
-
-            double minPercent = (setting.getMinValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
-            double maxPercent = (setting.getMaxValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
-
-            int minPos = x + (int) (minPercent * sliderWidth);
-            int maxPos = x + (int) (maxPercent * sliderWidth);
-
-            if (maxPos > minPos) {
-                RenderUtils.drawRect(minPos, sliderY, maxPos - minPos, sliderHeight, accentColor);
-            }
-
-            int knobSize = 10;
-            RenderUtils.drawFilledCircle(minPos, sliderY + sliderHeight / 2, knobSize / 2, textColor);
-            RenderUtils.drawFilledCircle(maxPos, sliderY + sliderHeight / 2, knobSize / 2, textColor);
-        }
-
-        public boolean isTabHovered(int mouseX, int mouseY) {
-            return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + categoryTabHeight;
-        }
-
-        public Category getCategory() {
-            return category;
-        }
-
-        public int getX() {
-            return x;
-        }
-
-        public void setX(int x) {
-            this.x = x;
-        }
-
-        public int getY() {
-            return y;
-        }
-
-        public void setY(int y) {
-            this.y = y;
-        }
     }
 
     /**
