@@ -1,4 +1,4 @@
-package me.sassan.base.impl.module.player;
+package me.sassan.base.impl.module.combact;
 
 import me.sassan.base.api.module.Module;
 import me.sassan.base.api.setting.impl.*;
