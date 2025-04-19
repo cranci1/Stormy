@@ -32,7 +32,7 @@ public class Reach extends Module {
     public Reach() {
         super("Reach", "Increases your attack reach", Keyboard.KEY_NONE, Category.COMBAT);
 
-        this.reachDistance = new DoubleSliderSetting("Reach", 3.07, 3.10, 3.0, 3.5, 0.01);
+        this.reachDistance = new DoubleSliderSetting("Reach", 3.07, 3.10, 3.00, 3.50, 0.01);
         this.movingOnly = new BooleanSetting("Moving only", false);
         this.sprintOnly = new BooleanSetting("Sprint only", false);
         this.hitThroughBlocks = new BooleanSetting("Hit through blocks", false);

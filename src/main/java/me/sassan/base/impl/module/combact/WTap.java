@@ -3,7 +3,6 @@ package me.sassan.base.impl.module.combact;
 import me.sassan.base.api.module.Module;
 import me.sassan.base.api.setting.impl.BooleanSetting;
 import me.sassan.base.api.setting.impl.SliderSetting;
-import me.sassan.base.utils.player.PlayerUtils;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -25,7 +24,7 @@ public class WTap extends Module {
 
     public WTap() {
         super("WTap", "Auto W-tap for increased knockback", Keyboard.KEY_NONE, Category.COMBAT);
-        this.chance = new SliderSetting("Chance", 100.0, 0.0, 100.0, 1.0);
+        this.chance = new SliderSetting("Chance", 50.0, 0.0, 100.0, 1.0);
         this.playersOnly = new BooleanSetting("Players Only", true);
 
         this.addSetting(chance);

@@ -16,6 +16,7 @@ public class ModuleRepo {
     public ModuleRepo() {
         list.add(new me.sassan.base.impl.module.player.SafeWalk());
         list.add(new me.sassan.base.impl.module.combact.AutoClicker());
+        list.add(new me.sassan.base.impl.module.combact.AimAssist());
         list.add(new me.sassan.base.impl.module.combact.Reach());
         list.add(new me.sassan.base.impl.module.combact.WTap());
         list.add(new me.sassan.base.impl.module.render.ClickGui());
