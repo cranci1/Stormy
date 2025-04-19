@@ -17,7 +17,7 @@ public class SafeWalk extends Module {
     private final BooleanSetting blocksOnly = new BooleanSetting("Blocks Only", true);
     private final BooleanSetting shiftOnJump = new BooleanSetting("Shift on Jump", false);
     private final BooleanSetting onHold = new BooleanSetting("On Shift Hold", false);
-    private final BooleanSetting lookDown = new BooleanSetting("Only When Looking Down", true);
+    private final BooleanSetting lookDown = new BooleanSetting("Only When Looking Down", false);
     private final DoubleSliderSetting pitchRange = new DoubleSliderSetting("Pitch Range", 70D, 85D, 0D, 90D, 1D);
     private final DoubleSliderSetting shiftTime = new DoubleSliderSetting("Shift Time (ms)", 140D, 200D, 0D, 280D, 5D);
 

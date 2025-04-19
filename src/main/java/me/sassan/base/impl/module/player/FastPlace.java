@@ -16,7 +16,7 @@ public class FastPlace extends Module {
 
     public FastPlace() {
         super("FastPlace", "Place blocks faster", Keyboard.KEY_NONE, Category.PLAYER);
-        this.addSetting(delaySlider = new SliderSetting("Delay", 0.0, 0.0, 3.0, 1.0));
+        this.addSetting(delaySlider = new SliderSetting("Delay", 1, 0.0, 3.0, 1.0));
         this.addSetting(blocksOnly = new BooleanSetting("Blocks only", true));
     }
 
