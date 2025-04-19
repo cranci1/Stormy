@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ArrayList extends Module {
-    private final BooleanSetting background = new BooleanSetting("Background", false);
+    private final BooleanSetting background = new BooleanSetting("Background", true);
     private final BooleanSetting outline = new BooleanSetting("Outline", false);
     private final BooleanSetting textShadow = new BooleanSetting("Text Shadow", true);
     private final BooleanSetting lowercase = new BooleanSetting("Lowercase", true);
@@ -27,8 +27,8 @@ public class ArrayList extends Module {
     private final DoubleSliderSetting colorHue = new DoubleSliderSetting("Color Hue", 180.0, 210.0, 0.0, 360.0, 1.0);
     private final SliderSetting saturation = new SliderSetting("Saturation", 100.0, 0.0, 100.0, 1.0);
     private final SliderSetting brightness = new SliderSetting("Brightness", 100.0, 0.0, 100.0, 1.0);
-    private final SliderSetting bgOpacity = new SliderSetting("Bg Opacity", 70.0, 0.0, 100.0, 1.0);
-    private final SliderSetting spacing = new SliderSetting("Spacing", 1.0, 0.0, 5.0, 0.5);
+    private final SliderSetting bgOpacity = new SliderSetting("Bg Opacity", 30.0, 0.0, 100.0, 1.0);
+    private final SliderSetting spacing = new SliderSetting("Spacing", 0.0, 0.0, 5.0, 0.5);
 
     public ArrayList() {
         super("ArrayList", "Shows enabled modules", Keyboard.KEY_NONE, Category.CLIENT);
@@ -140,6 +140,28 @@ public class ArrayList extends Module {
                 if (!valueText.isEmpty()) {
                     sb.append(" §7[").append(valueText).append("]§r");
                 }
+            } else if (module instanceof Reach) {
+                Reach reach = (Reach) module;
+                String valueText = reach.getSettings().stream()
+                        .filter(s -> s.getName().equals("Reach"))
+                        .findFirst()
+                        .map(s -> String.format("%.2f-%.2f",
+                                ((DoubleSliderSetting) s).getMinValue(),
+                                ((DoubleSliderSetting) s).getMaxValue()))
+                        .orElse("");
+                if (!valueText.isEmpty()) {
+                    sb.append(" §7[").append(valueText).append("]§r");
+                }
+            } else if (module instanceof WTap) {
+                WTap wtap = (WTap) module;
+                String valueText = wtap.getSettings().stream()
+                        .filter(s -> s.getName().equals("Chance"))
+                        .findFirst()
+                        .map(s -> String.format("%.0f%%", ((SliderSetting) s).getValue()))
+                        .orElse("");
+                if (!valueText.isEmpty()) {
+                    sb.append(" §7[").append(valueText).append("]§r");
+                }
             }
         }
 
@@ -147,15 +169,12 @@ public class ArrayList extends Module {
     }
 
     private Color getModuleColor(Module module, int yOffset) {
-        // Use HSB color model for easier manipulation
         float startHue = (float) colorHue.getMinValue() / 360f;
         float endHue = (float) colorHue.getMaxValue() / 360f;
 
-        // Calculate hue based on position or module name
         float hueOffset = (float) (yOffset % 100) / 100f;
         float hue = startHue + (endHue - startHue) * hueOffset;
 
-        // Ensure hue is in valid range
         if (hue > 1)
             hue -= 1;
         if (hue < 0)
