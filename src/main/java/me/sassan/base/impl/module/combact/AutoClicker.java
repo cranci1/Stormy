@@ -13,13 +13,12 @@ import net.minecraft.block.BlockLiquid;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.BlockPos;
 import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemBow;
 
 import java.lang.reflect.Method;
 import java.util.Random;
 
 public class AutoClicker extends Module {
-    private final DoubleSliderSetting cpsRange = new DoubleSliderSetting("CPS Range", 9.0, 12.0, 1.0, 20.0, 0.5);
+    private final DoubleSliderSetting cpsRange = new DoubleSliderSetting("CPS Range", 10.0, 12.0, 1.0, 20.0, 0.5);
     private final SliderSetting jitterAmount = new SliderSetting("Jitter", 0.0, 0.0, 3.0, 0.1);
     private final SliderSetting blockHitChance = new SliderSetting("Block Hit %", 10, 0, 100, 1);
     private final BooleanSetting breakBlocks = new BooleanSetting("Break Blocks", true);
@@ -27,20 +26,21 @@ public class AutoClicker extends Module {
     private final BooleanSetting weaponOnly = new BooleanSetting("Weapon Only", false);
     private final BooleanSetting leftClick = new BooleanSetting("Left Click", true);
     private final BooleanSetting rightClick = new BooleanSetting("Right Click", false);
-    private final BooleanSetting blocksOnly = new BooleanSetting("Blocks Only", true);
+    private final BooleanSetting blocksOnly = new BooleanSetting("Blocks Only", false);
     private final BooleanSetting inventoryFill = new BooleanSetting("Inventory Fill", false);
-    private final BooleanSetting disableCreative = new BooleanSetting("Disable in Creative", false);
 
     private long nextPressTime = 0L;
     private long nextReleaseTime = 0L;
     private long nextMultiplierUpdateTime = 0L;
     private long nextExtraDelayUpdateTime = 0L;
+    private long blockHitStartTime = 0L;
     private double delayMultiplier = 1.0D;
     private boolean multiplierActive = false;
     private boolean isBlockHitActive = false;
     private boolean isHoldingBlock = false;
-    private long blockHitReleaseTime = 0L;
-    private boolean blockHitKeyHeld = false;
+
+    private long useItemReleaseTime = 0L;
+    private boolean useItemKeyHeld = false;
 
     private final Random rand = new Random();
     private Method guiScreenMouseClick;
@@ -51,13 +51,12 @@ public class AutoClicker extends Module {
         this.addSetting(jitterAmount);
         this.addSetting(leftClick);
         this.addSetting(rightClick);
-        this.addSetting(breakBlocks);
-        this.addSetting(blockHitChance);
+        this.addSetting(inventoryFill);
         this.addSetting(weaponOnly);
         this.addSetting(blocksOnly);
-        this.addSetting(inventoryFill);
+        this.addSetting(breakBlocks);
+        this.addSetting(blockHitChance);
         this.addSetting(hitSelect);
-        this.addSetting(disableCreative);
 
         try {
             this.guiScreenMouseClick = net.minecraft.client.gui.GuiScreen.class.getDeclaredMethod(
@@ -76,18 +75,6 @@ public class AutoClicker extends Module {
         resetClickTimers();
     }
 
-    @Override
-    public void onDisable() {
-        resetClickTimers();
-        isBlockHitActive = false;
-        isHoldingBlock = false;
-        if (blockHitKeyHeld) {
-            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-            blockHitKeyHeld = false;
-        }
-        super.onDisable();
-    }
-
     @SubscribeEvent
     public void onTick(TickEvent event) {
         if (isEnabled()) {
@@ -96,26 +83,33 @@ public class AutoClicker extends Module {
     }
 
     private void onTickInternal() {
-        if (!isEnabled() || mc.thePlayer == null || mc.theWorld == null) {
+        if (!isEnabled() || mc.thePlayer == null) {
             return;
         }
 
-        if (disableCreative.getValue() && mc.thePlayer.capabilities.isCreativeMode) {
-            return;
-        }
-
-        if (blockHitKeyHeld && System.currentTimeMillis() >= blockHitReleaseTime) {
+        if (useItemKeyHeld && System.currentTimeMillis() >= useItemReleaseTime) {
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-            blockHitKeyHeld = false;
+            useItemKeyHeld = false;
         }
 
-        if (isPlayerConsuming()) {
+        if (mc.thePlayer.isUsingItem()) {
             resetClickTimers();
             return;
         }
 
         if (inventoryFill.getValue() && mc.currentScreen instanceof GuiInventory) {
-            handleInventoryFill();
+            if (Mouse.isButtonDown(0) && (Keyboard.isKeyDown(54) || Keyboard.isKeyDown(42))) { // Shift key pressed
+                if (nextPressTime != 0L && nextReleaseTime != 0L) {
+                    if (System.currentTimeMillis() > nextReleaseTime) {
+                        simulateInventoryClick();
+                        updateClickDelay();
+                    }
+                } else {
+                    updateClickDelay();
+                }
+            } else {
+                resetClickTimers();
+            }
             return;
         }
 
@@ -125,16 +119,33 @@ public class AutoClicker extends Module {
         }
 
         if (leftClick.getValue() && Mouse.isButtonDown(0)) {
-            if (!shouldAttack()) {
+            if (!shouldAttack())
                 return;
+
+            if (breakBlocks.getValue() && mc.objectMouseOver != null) {
+                BlockPos pos = mc.objectMouseOver.getBlockPos();
+                if (pos != null) {
+                    Block block = mc.theWorld.getBlockState(pos).getBlock();
+                    if (block != Blocks.air && !(block instanceof BlockLiquid)) {
+                        if (!isHoldingBlock) {
+                            KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), true);
+                            KeyBinding.onTick(mc.gameSettings.keyBindAttack.getKeyCode());
+                            isHoldingBlock = true;
+                        }
+                        return;
+                    }
+
+                    if (isHoldingBlock) {
+                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
+                        isHoldingBlock = false;
+                    }
+                }
             }
 
-            handleBlockBreaking();
             performClick(mc.gameSettings.keyBindAttack.getKeyCode(), 0);
         } else if (rightClick.getValue() && Mouse.isButtonDown(1)) {
-            if (!shouldRightClick()) {
+            if (!shouldRightClick())
                 return;
-            }
             performClick(mc.gameSettings.keyBindUseItem.getKeyCode(), 1);
         } else {
             resetClickTimers();
@@ -145,55 +156,12 @@ public class AutoClicker extends Module {
         }
     }
 
-    private boolean isPlayerConsuming() {
-        if (mc.thePlayer.isUsingItem()) {
-            return true;
-        }
-
-        if (mc.thePlayer.getHeldItem() != null) {
-            if (mc.thePlayer.getHeldItem().getItem() instanceof ItemBow && Mouse.isButtonDown(1)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void handleInventoryFill() {
-        if (Mouse.isButtonDown(0) && (Keyboard.isKeyDown(54) || Keyboard.isKeyDown(42))) {
-            if (nextPressTime != 0L && nextReleaseTime != 0L) {
-                if (System.currentTimeMillis() > nextReleaseTime) {
-                    simulateInventoryClick();
-                    updateClickDelay();
-                }
-            } else {
-                updateClickDelay();
-            }
-        } else {
-            resetClickTimers();
-        }
-    }
-
-    private void handleBlockBreaking() {
-        if (breakBlocks.getValue() && mc.objectMouseOver != null) {
-            BlockPos pos = mc.objectMouseOver.getBlockPos();
-            if (pos != null) {
-                Block block = mc.theWorld.getBlockState(pos).getBlock();
-                if (block != Blocks.air && !(block instanceof BlockLiquid)) {
-                    if (!isHoldingBlock) {
-                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), true);
-                        KeyBinding.onTick(mc.gameSettings.keyBindAttack.getKeyCode());
-                        isHoldingBlock = true;
-                    }
-                    return;
-                }
-
-                if (isHoldingBlock) {
-                    KeyBinding.setKeyBindState(mc.gameSettings.keyBindAttack.getKeyCode(), false);
-                    isHoldingBlock = false;
-                }
-            }
-        }
+    @Override
+    public void onDisable() {
+        resetClickTimers();
+        isBlockHitActive = false;
+        isHoldingBlock = false;
+        super.onDisable();
     }
 
     private void resetClickTimers() {
@@ -216,14 +184,14 @@ public class AutoClicker extends Module {
         if (weaponOnly.getValue() && !isHoldingWeapon()) {
             return false;
         }
+        if (hitSelect.getValue()) {
+            return true;
+        }
         return true;
     }
 
     private boolean shouldRightClick() {
         if (blocksOnly.getValue() && !isHoldingBlock()) {
-            return false;
-        }
-        if (mc.thePlayer.getHeldItem() != null && mc.thePlayer.getHeldItem().getItem() instanceof ItemBow) {
             return false;
         }
         return true;
@@ -262,11 +230,11 @@ public class AutoClicker extends Module {
             if (mouseButton == 0 && blockHitChance.getValue() > 0.0
                     && rand.nextDouble() * 100 < blockHitChance.getValue()
                     && mc.objectMouseOver != null && mc.objectMouseOver.entityHit != null) {
-                if (isHoldingWeapon() && !blockHitKeyHeld) {
+                if (isHoldingWeapon() && !useItemKeyHeld) {
                     KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
                     KeyBinding.onTick(mc.gameSettings.keyBindUseItem.getKeyCode());
-                    blockHitKeyHeld = true;
-                    blockHitReleaseTime = System.currentTimeMillis() + 15 + rand.nextInt(15);
+                    useItemKeyHeld = true;
+                    useItemReleaseTime = System.currentTimeMillis() + 15 + rand.nextInt(15);
                 }
             }
 
