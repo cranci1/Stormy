@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
     implementation("org.projectlombok:lombok:1.18.28")
+    implementation("org.json:json:20231013")
     annotationProcessor("org.projectlombok:lombok:1.18.28")
     compileOnly("com.github.weave-mc:weave-loader:v0.2.4")
     compileOnly("org.spongepowered:mixin:0.8.5")

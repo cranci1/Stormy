@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.weavemc.loader.api.event.EventBus;
 import net.weavemc.loader.api.event.KeyboardEvent;
 import net.weavemc.loader.api.event.SubscribeEvent;
+import net.weavemc.loader.api.command.CommandBus;
 import dev.stormy.client.clickgui.ClickGui;
 import dev.stormy.client.config.ClientConfig;
 import dev.stormy.client.config.ConfigManager;
@@ -12,6 +13,7 @@ import dev.stormy.client.module.Module;
 import dev.stormy.client.module.ModuleManager;
 import dev.stormy.client.utils.game.MouseManager;
 import dev.stormy.client.utils.Utils;
+import dev.stormy.client.commands.HypixelApiCommand;
 
 public class Stormy {
 
@@ -24,6 +26,7 @@ public class Stormy {
    public static void init() {
       EventBus.subscribe(new Stormy());
       EventBus.subscribe(new MouseManager());
+      CommandBus.register(new HypixelApiCommand());
 
       moduleManager = new ModuleManager();
       clickGui = new ClickGui();
