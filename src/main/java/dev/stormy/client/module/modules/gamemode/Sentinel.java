@@ -32,6 +32,7 @@ public class Sentinel extends Module {
     public static TickSetting showUI;
     public static TickSetting compactMode;
     public static TickSetting showNicked;
+    public static TickSetting editPosition;
     
     // API settings
     private static String apiKey = "";
@@ -49,12 +50,10 @@ public class Sentinel extends Module {
     private int uiY = 70;
     private final int ENTRY_HEIGHT = 20;
     private final int COMPACT_ENTRY_HEIGHT = 15;
-    private boolean isDragging = false;
-    private int dragOffsetX, dragOffsetY;
     
     public Sentinel() {
         super("Sentinel", ModuleCategory.GameMode, Keyboard.KEY_NONE);
-        this.registerSetting(new DescriptionSetting("BedWars stats overlay with UI"));
+        this.registerSetting(new DescriptionSetting("BedWars stats overlay"));
         this.registerSetting(showUI = new TickSetting("Show UI", true));
         this.registerSetting(compactMode = new TickSetting("Compact Mode", false));
         this.registerSetting(showNicked = new TickSetting("Show Nicked Players", true));
@@ -119,7 +118,7 @@ public class Sentinel extends Module {
     
     @SubscribeEvent
     public void onRender(RenderGameOverlayEvent event) {
-        if (!PlayerUtils.isPlayerInGame() || !showUI.isToggled() || mc.currentScreen != null)
+        if (!PlayerUtils.isPlayerInGame() || !showUI.isToggled())
             return;
         
         // Check for new players
@@ -129,38 +128,6 @@ public class Sentinel extends Module {
         renderStatsUI();
     }
     
-    @SubscribeEvent
-    public void onMouse(MouseEvent event) {
-        if (!PlayerUtils.isPlayerInGame() || !showUI.isToggled())
-            return;
-            
-        ScaledResolution sr = new ScaledResolution(mc);
-        int mouseX = event.getX();
-        int mouseY = event.getY();
-        
-        int uiWidth = 300;
-        int uiHeight = calculateUIHeight();
-        
-        // Handle dragging
-        if (event.getButton() == 0) {
-            if (MouseEvent.isButtonPressed(event)) { // Use the utility method
-                if (mouseX >= uiX && mouseX <= uiX + uiWidth && 
-                    mouseY >= uiY && mouseY <= uiY + 20) { // Header area
-                    isDragging = true;
-                    dragOffsetX = mouseX - uiX;
-                    dragOffsetY = mouseY - uiY;
-                }
-            } else if (MouseEvent.isButtonReleased(event)) {
-                isDragging = false;
-            }
-        }
-        
-        if (isDragging) {
-            uiX = mouseX - dragOffsetX;
-            uiY = mouseY - dragOffsetY;
-        }
-    }
-    
     private int calculateUIHeight() {
         int totalEntries = playerStats.size() + (showNicked.isToggled() ? nickedPlayers.size() : 0);
         int entryHeight = compactMode.isToggled() ? COMPACT_ENTRY_HEIGHT : ENTRY_HEIGHT;
@@ -168,64 +135,75 @@ public class Sentinel extends Module {
     }
     
     private void renderStatsUI() {
-        // Calculate UI dimensions
-        int uiWidth = 300;
-        int uiHeight = calculateUIHeight();
-        int entryHeight = compactMode.isToggled() ? COMPACT_ENTRY_HEIGHT : ENTRY_HEIGHT;
-        
-        // Draw background
-        Utils.HUD.drawRoundedRect(uiX, uiY, uiX + uiWidth, uiY + uiHeight, 5, new Color(0, 0, 0, 180));
-        
-        // Draw header
-        Utils.HUD.drawRoundedRect(uiX, uiY, uiX + uiWidth, uiY + 20, 5, new Color(25, 25, 25, 220));
-        mc.fontRendererObj.drawStringWithShadow("§b§lSentinel §f- BedWars Stats", uiX + 5, uiY + 6, -1);
-        
-        // Draw API status
-        String apiStatus = apiKey.isEmpty() ? "§c§lNo API Key" : "§a§lAPI Connected";
-        mc.fontRendererObj.drawStringWithShadow(apiStatus, uiX + uiWidth - mc.fontRendererObj.getStringWidth(apiStatus) - 5, uiY + 6, -1);
-        
-        // Draw player entries
-        int yOffset = uiY + 20;
-        
-        // Sort players by FKDR (highest first)
-        List<Map.Entry<String, PlayerStats>> sortedStats = new ArrayList<>(playerStats.entrySet());
-        sortedStats.sort((a, b) -> Float.compare(b.getValue().fkdr, a.getValue().fkdr));
-        
-        // Draw stats for each player
-        for (Map.Entry<String, PlayerStats> entry : sortedStats) {
-            String playerName = entry.getKey();
-            PlayerStats stats = entry.getValue();
+        try {
+            // Calculate UI dimensions
+            int uiWidth = 300;
+            int uiHeight = calculateUIHeight();
+            int entryHeight = compactMode.isToggled() ? COMPACT_ENTRY_HEIGHT : ENTRY_HEIGHT;
             
-            // Draw background for entry
-            int entryAlpha = 120;
-            int colorShift = sortedStats.indexOf(entry) % 2 == 0 ? 0 : 15;
-            Utils.HUD.drawRoundedRect(uiX, yOffset, uiX + uiWidth, yOffset + entryHeight, 0, 
-                    new Color(30 + colorShift, 30 + colorShift, 35 + colorShift, entryAlpha));
+            // Draw background
+            Utils.HUD.drawRoundedRect(uiX, uiY, uiX + uiWidth, uiY + uiHeight, 5, new Color(0, 0, 0, 180));
             
-            if (compactMode.isToggled()) {
-                renderCompactEntry(playerName, stats, yOffset);
-            } else {
-                renderFullEntry(playerName, stats, yOffset);
-            }
+            // Draw header with gradient effect
+            Color headerColor = new Color(25, 25, 25, 220);
+            Utils.HUD.drawRoundedRect(uiX, uiY, uiX + uiWidth, uiY + 20, 5, headerColor);
             
-            yOffset += entryHeight;
-        }
-        
-        // Draw nicked players if enabled
-        if (showNicked.isToggled()) {
-            for (String nickedPlayer : nickedPlayers) {
-                // Draw background for entry
-                int entryAlpha = 120;
-                int colorShift = (nickedPlayers.size() + playerStats.size()) % 2 == 0 ? 0 : 15;
-                Utils.HUD.drawRoundedRect(uiX, yOffset, uiX + uiWidth, yOffset + entryHeight, 0, 
-                        new Color(40 + colorShift, 20 + colorShift, 25 + colorShift, entryAlpha));
+            // Draw title with custom formatting
+            String title = "§b§lSentinel §f- §eBedWars Stats";
+            mc.fontRendererObj.drawStringWithShadow(title, uiX + 5, uiY + 6, -1);
+            
+            // Draw API status with animation
+            String apiStatus = apiKey.isEmpty() ? "§c§lNo API Key" : "§a§lAPI Connected";
+            mc.fontRendererObj.drawStringWithShadow(apiStatus, 
+                    uiX + uiWidth - mc.fontRendererObj.getStringWidth(apiStatus) - 5, uiY + 6, -1);
+            
+            // Draw player entries
+            int yOffset = uiY + 20;
+            
+            // Sort players by FKDR (highest first)
+            List<Map.Entry<String, PlayerStats>> sortedStats = new ArrayList<>(playerStats.entrySet());
+            sortedStats.sort((a, b) -> Float.compare(b.getValue().fkdr, a.getValue().fkdr));
+            
+            // Draw stats for each player
+            for (Map.Entry<String, PlayerStats> entry : sortedStats) {
+                String playerName = entry.getKey();
+                PlayerStats stats = entry.getValue();
                 
-                // Display nicked player info
-                mc.fontRendererObj.drawStringWithShadow("§c§lNICKED §f" + nickedPlayer, 
-                        uiX + 5, yOffset + (entryHeight / 2) - 4, -1);
+                if (playerName == null || stats == null) continue; // Skip invalid entries
+                
+                // Draw entry background with alternating colors
+                int entryAlpha = 120;
+                int colorShift = sortedStats.indexOf(entry) % 2 == 0 ? 0 : 15;
+                Color entryColor = new Color(30 + colorShift, 30 + colorShift, 35 + colorShift, entryAlpha);
+                Utils.HUD.drawRoundedRect(uiX, yOffset, uiX + uiWidth, yOffset + entryHeight, 0, entryColor);
+                
+                if (compactMode.isToggled()) {
+                    renderCompactEntry(playerName, stats, yOffset);
+                } else {
+                    renderFullEntry(playerName, stats, yOffset);
+                }
                 
                 yOffset += entryHeight;
             }
+            
+            // Draw nicked players if enabled
+            if (showNicked.isToggled()) {
+                for (String nickedPlayer : nickedPlayers) {
+                    // Draw background for nicked players with distinct color
+                    int entryAlpha = 120;
+                    Color nickedColor = new Color(40, 20, 25, entryAlpha);
+                    Utils.HUD.drawRoundedRect(uiX, yOffset, uiX + uiWidth, yOffset + entryHeight, 0, nickedColor);
+                    
+                    // Display nicked player info
+                    mc.fontRendererObj.drawStringWithShadow("§c§lNICKED §f" + nickedPlayer, 
+                            uiX + 5, yOffset + (entryHeight / 2) - 4, -1);
+                    
+                    yOffset += entryHeight;
+                }
+            }
+        } catch (Exception e) {
+            // Log error but don't crash
+            System.err.println("Error rendering Sentinel UI: " + e.getMessage());
         }
     }
     
@@ -261,24 +239,33 @@ public class Sentinel extends Module {
     }
     
     private void renderCompactEntry(String playerName, PlayerStats stats, int yPos) {
-        // More compact layout with less vertical spacing
+        if (playerName == null || stats == null) return; // Defensive check
+        
+        String teamColor = getTeamColor(playerName);
         String starDisplay = getStarColor(stats.level) + "[" + stats.level + "✫]";
+        
+        // Calculate KDR
+        float kdr = stats.finalDeaths > 0 ? (float) stats.finalKills / stats.finalDeaths : stats.finalKills;
+        
+        // Format stats with colors
         String fkdrText = getColorForFKDR(stats.fkdr) + String.format("%.2f", stats.fkdr);
         String wlrText = getColorForWLR(stats.wlr) + String.format("%.2f", stats.wlr);
+        String kdrText = getColorForFKDR(kdr) + String.format("%.2f", kdr);
         
-        // Draw stats in a single line
-        mc.fontRendererObj.drawStringWithShadow(starDisplay + " §f" + playerName, 
+        // Draw name and stats
+        String displayName = starDisplay + " " + teamColor + playerName;
+        mc.fontRendererObj.drawStringWithShadow(displayName, 
                 uiX + 5, yPos + (COMPACT_ENTRY_HEIGHT / 2) - 4, -1);
-                
-        // Draw FKDR/WLR on the right side
-        mc.fontRendererObj.drawStringWithShadow("§7FK: " + fkdrText + " §7W: " + wlrText,
-                uiX + 300 - mc.fontRendererObj.getStringWidth("§7FK: " + fkdrText + " §7W: " + wlrText) - 5,
+        
+        // Draw stats on right side
+        String statsText = "§7FK: " + fkdrText + " §7W: " + wlrText + " §7K: " + kdrText;
+        mc.fontRendererObj.drawStringWithShadow(statsText,
+                uiX + 300 - mc.fontRendererObj.getStringWidth(statsText) - 5,
                 yPos + (COMPACT_ENTRY_HEIGHT / 2) - 4, -1);
     }
     
     private void checkPlayers() {
-        if (apiKey.isEmpty())
-            return;
+        if (mc == null || mc.theWorld == null || apiKey.isEmpty()) return;
             
         for (EntityPlayer player : mc.theWorld.playerEntities) {
             if (player == null || player == mc.thePlayer || 
@@ -288,9 +275,9 @@ public class Sentinel extends Module {
                 
             processedPlayers.add(player.getName());
             
-            // Check if player is nicked (UUID version 1 indicates nickname)
+            // Check if player is nicked
             UUID playerUUID = player.getUniqueID();
-            if (playerUUID.version() == 1) {
+            if (playerUUID != null && playerUUID.version() == 1) {
                 nickedPlayers.add(player.getName());
                 continue;
             }
@@ -433,6 +420,40 @@ public class Sentinel extends Module {
         else return "§7"; // Gray
     }
     
+    private String getTeamColor(String playerName) {
+        // Defensive null check
+        if (playerName == null) return "";
+        
+        EntityPlayer player = mc.theWorld.getPlayerEntityByName(playerName);
+        if (player == null || player.getDisplayName() == null) return "§f"; // Default to white
+        
+        String formatted = player.getDisplayName().getFormattedText();
+        String colorCode = "§f"; // Default to white
+        
+        if (formatted.length() >= 2) {
+            // Extract color code from name
+            for (int i = 0; i < Math.min(formatted.length() - 1, 10); i++) {
+                if (formatted.charAt(i) == '§') {
+                    colorCode = "§" + formatted.charAt(i + 1);
+                    break;
+                }
+            }
+        }
+
+        // Map color codes to team names
+        return switch (colorCode) {
+            case "§c" -> colorCode + "[R] ";
+            case "§9" -> colorCode + "[B] ";
+            case "§a" -> colorCode + "[G] ";
+            case "§e" -> colorCode + "[Y] ";
+            case "§f" -> colorCode + "[W] ";
+            case "§d" -> colorCode + "[P] ";
+            case "§7" -> colorCode + "[G] ";
+            case "§b" -> colorCode + "[A] ";
+            default -> colorCode;
+        };
+    }
+
     // Class to store player statistics
     private static class PlayerStats {
         int level;
