@@ -699,5 +699,81 @@ public class Utils {
          DOWNLEFT,
          DOWNRIGHT
       }
+
+      public static void drawRoundedRect(float left, float top, float right, float bottom, float radius, Color color) {
+         drawRect(left + radius, top, right - radius, bottom, color);
+         drawRect(left, top + radius, left + radius, bottom - radius, color);
+         drawRect(right - radius, top + radius, right, bottom - radius, color);
+         
+         drawFilledCircle(left + radius, top + radius, radius, color);
+         drawFilledCircle(right - radius, top + radius, radius, color);
+         drawFilledCircle(left + radius, bottom - radius, radius, color);
+         drawFilledCircle(right - radius, bottom - radius, radius, color);
+     }
+     
+     public static void drawRect(float left, float top, float right, float bottom, Color color) {
+         float f3;
+         
+         if (left < right) {
+             f3 = left;
+             left = right;
+             right = f3;
+         }
+         
+         if (top < bottom) {
+             f3 = top;
+             top = bottom;
+             bottom = f3;
+         }
+         
+         float alpha = (color.getRGB() >> 24 & 0xFF) / 255.0F;
+         float red = (color.getRGB() >> 16 & 0xFF) / 255.0F;
+         float green = (color.getRGB() >> 8 & 0xFF) / 255.0F;
+         float blue = (color.getRGB() & 0xFF) / 255.0F;
+         
+         Tessellator tessellator = Tessellator.getInstance();
+         WorldRenderer worldrenderer = tessellator.getWorldRenderer();
+         
+         GlStateManager.enableBlend();
+         GlStateManager.disableTexture2D();
+         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+         GlStateManager.color(red, green, blue, alpha);
+         
+         worldrenderer.begin(7, DefaultVertexFormats.POSITION);
+         worldrenderer.pos(left, bottom, 0.0D).endVertex();
+         worldrenderer.pos(right, bottom, 0.0D).endVertex();
+         worldrenderer.pos(right, top, 0.0D).endVertex();
+         worldrenderer.pos(left, top, 0.0D).endVertex();
+         tessellator.draw();
+         
+         GlStateManager.enableTexture2D();
+         GlStateManager.disableBlend();
+     }
+     
+     public static void drawFilledCircle(float x, float y, float radius, Color color) {
+         GlStateManager.enableBlend();
+         GlStateManager.disableTexture2D();
+         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+         
+         float alpha = (color.getRGB() >> 24 & 0xFF) / 255.0F;
+         float red = (color.getRGB() >> 16 & 0xFF) / 255.0F;
+         float green = (color.getRGB() >> 8 & 0xFF) / 255.0F;
+         float blue = (color.getRGB() & 0xFF) / 255.0F;
+         
+         GlStateManager.color(red, green, blue, alpha);
+         
+         GL11.glBegin(GL11.GL_TRIANGLE_FAN);
+         GL11.glVertex2f(x, y);
+         
+         for (int i = 0; i <= 360; i++) {
+             float angle = (float) Math.toRadians(i);
+             GL11.glVertex2f((float) (x + Math.sin(angle) * radius), (float) (y + Math.cos(angle) * radius));
+         }
+         
+         GL11.glEnd();
+         
+         GlStateManager.enableTexture2D();
+         GlStateManager.disableBlend();
+     }
    }
 }

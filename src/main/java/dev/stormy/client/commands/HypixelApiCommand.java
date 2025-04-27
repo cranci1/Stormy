@@ -1,6 +1,6 @@
 package dev.stormy.client.commands;
 
-import dev.stormy.client.module.modules.gamemode.BedWars;
+import dev.stormy.client.module.modules.gamemode.Sentinel;
 import net.weavemc.loader.api.command.Command;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.ChatComponentText;
@@ -9,7 +9,7 @@ import net.minecraft.util.EnumChatFormatting;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.Arrays;
 import java.util.List;
@@ -51,12 +51,12 @@ public class HypixelApiCommand extends Command {
                 break;
                 
             case "clear":
-                BedWars.setApiKey("");
+                Sentinel.setApiKey("");
                 sendMessage(EnumChatFormatting.GREEN + "API key cleared successfully.");
                 break;
                 
             case "status":
-                String currentKey = BedWars.getApiKey();
+                String currentKey = Sentinel.getApiKey();
                 if (currentKey.isEmpty()) {
                     sendMessage(EnumChatFormatting.RED + "No API key is currently set.");
                     sendMessage(EnumChatFormatting.GRAY + "Set one with /hypixelapi set YOUR_API_KEY");
@@ -78,8 +78,8 @@ public class HypixelApiCommand extends Command {
             try {
                 // Use a different endpoint since the key endpoint is deprecated
                 // Using the player endpoint with a limit of 1 to minimize data transfer
-                URL url = new URL("https://api.hypixel.net/player?uuid=00000000-0000-0000-0000-000000000000&key=" + apiKey);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                URI uri = new URI("https://api.hypixel.net/player?uuid=00000000-0000-0000-0000-000000000000&key=" + apiKey);
+                HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
                 connection.setRequestMethod("GET");
                 
                 int responseCode = connection.getResponseCode();
@@ -94,7 +94,7 @@ public class HypixelApiCommand extends Command {
                     reader.close();
                     
                     if (response.toString().contains("\"success\":true")) {
-                        BedWars.setApiKey(apiKey);
+                        Sentinel.setApiKey(apiKey);
                         sendMessageLater(EnumChatFormatting.GREEN + "API key validated and saved successfully!");
                     } else {
                         sendMessageLater(EnumChatFormatting.RED + "Invalid API key. Please check and try again.");
