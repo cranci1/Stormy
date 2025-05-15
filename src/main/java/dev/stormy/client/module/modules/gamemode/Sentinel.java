@@ -5,13 +5,10 @@ import dev.stormy.client.module.setting.impl.DescriptionSetting;
 import dev.stormy.client.module.setting.impl.TickSetting;
 import dev.stormy.client.utils.player.PlayerUtils;
 import dev.stormy.client.utils.Utils;
-import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
 import net.weavemc.loader.api.event.SubscribeEvent;
 import net.weavemc.loader.api.event.RenderGameOverlayEvent;
-import me.tryfle.stormy.events.MouseEvent;
 import org.lwjgl.input.Keyboard;
 
 import java.awt.*;
@@ -44,7 +41,10 @@ public class Sentinel extends Module {
     private final Map<String, PlayerStats> playerStats = new HashMap<>();
     private final Set<String> nickedPlayers = new HashSet<>();
     private final Set<String> processedPlayers = new HashSet<>();
-    
+    private final Map<String, Team> playerTeams = new HashMap<>();
+    private long lastTeamUpdate = 0;
+    private static final long TEAM_UPDATE_INTERVAL = 10000; // Update team cache every 10 seconds
+
     // UI positioning
     private int uiX = 5;
     private int uiY = 70;
@@ -218,8 +218,7 @@ public class Sentinel extends Module {
         // Main stats
         String fkdrText = "§7FKDR: " + getColorForFKDR(stats.fkdr) + String.format("%.2f", stats.fkdr);
         String wlrText = "§7WLR: " + getColorForWLR(stats.wlr) + String.format("%.2f", stats.wlr);
-        String winsText = "§7W: " + getColorForWins(stats.wins) + stats.wins;
-        String finalKillsText = "§7FK: " + getColorForFinalKills(stats.finalKills) + stats.finalKills;
+        String finalKillsText = "§7KDR: " + getColorForFKDR(stats.kdr) + String.format("%.2f", stats.kdr);
         String bedsText = "§7Beds: " + getColorForBeds(stats.bedsDestroyed) + stats.bedsDestroyed;
         
         int statX = uiX + 5;
@@ -228,9 +227,6 @@ public class Sentinel extends Module {
         
         mc.fontRendererObj.drawStringWithShadow(wlrText, statX, yPos + 12, -1);
         statX += mc.fontRendererObj.getStringWidth(wlrText) + 10;
-        
-        mc.fontRendererObj.drawStringWithShadow(winsText, statX, yPos + 12, -1);
-        statX += mc.fontRendererObj.getStringWidth(winsText) + 10;
         
         mc.fontRendererObj.drawStringWithShadow(finalKillsText, statX, yPos + 12, -1);
         statX += mc.fontRendererObj.getStringWidth(finalKillsText) + 10;
@@ -243,14 +239,10 @@ public class Sentinel extends Module {
         
         String teamColor = getTeamColor(playerName);
         String starDisplay = getStarColor(stats.level) + "[" + stats.level + "✫]";
-        
-        // Calculate KDR
-        float kdr = stats.finalDeaths > 0 ? (float) stats.finalKills / stats.finalDeaths : stats.finalKills;
-        
-        // Format stats with colors
+
         String fkdrText = getColorForFKDR(stats.fkdr) + String.format("%.2f", stats.fkdr);
         String wlrText = getColorForWLR(stats.wlr) + String.format("%.2f", stats.wlr);
-        String kdrText = getColorForFKDR(kdr) + String.format("%.2f", kdr);
+        String kdrText = getColorForFKDR(stats.kdr) + String.format("%.2f", stats.kdr);
         
         // Draw name and stats
         String displayName = starDisplay + " " + teamColor + playerName;
@@ -275,9 +267,12 @@ public class Sentinel extends Module {
                 
             processedPlayers.add(player.getName());
             
-            // Check if player is nicked
             UUID playerUUID = player.getUniqueID();
-            if (playerUUID != null && playerUUID.version() == 1) {
+            if (playerUUID == null) {
+                nickedPlayers.add(player.getName());
+                continue;
+            }
+            if (playerUUID.version() == 1) {
                 nickedPlayers.add(player.getName());
                 continue;
             }
@@ -287,10 +282,8 @@ public class Sentinel extends Module {
     }
     
     private boolean isSpectator(EntityPlayer player) {
-        // Check if player is a spectator by seeing if they're invisible and not in combat
         return (player.isInvisible() && player.isSpectator()) || 
                (player.isInvisible() && player.getHealth() <= 0) ||
-               // Alternative check using GameType when available
                (mc.getNetHandler() != null && 
                 mc.getNetHandler().getPlayerInfo(player.getUniqueID()) != null && 
                 mc.getNetHandler().getPlayerInfo(player.getUniqueID()).getGameType() == net.minecraft.world.WorldSettings.GameType.SPECTATOR);
@@ -332,36 +325,28 @@ public class Sentinel extends Module {
     
     private void processPlayerStats(JSONObject json, String playerName) {
         try {
-            if (!json.has("player") || json.isNull("player")) {
-                return;
-            }
+            if (!json.has("player") || json.isNull("player")) return;
             
             JSONObject player = json.getJSONObject("player");
-            
-            if (!player.has("stats") || !player.getJSONObject("stats").has("Bedwars")) {
-                return;
-            }
+            if (!player.has("stats") || !player.getJSONObject("stats").has("Bedwars")) return;
             
             JSONObject bedwars = player.getJSONObject("stats").getJSONObject("Bedwars");
             
-            PlayerStats stats = new PlayerStats();
-            stats.level = player.has("achievements") && player.getJSONObject("achievements").has("bedwars_level") ? 
-                          player.getJSONObject("achievements").getInt("bedwars_level") : 0;
-            stats.wins = bedwars.optInt("wins_bedwars", 0);
-            stats.losses = bedwars.optInt("losses_bedwars", 0);
-            stats.wlr = stats.losses > 0 ? (float) stats.wins / stats.losses : stats.wins;
+            PlayerStats stats = new PlayerStats.Builder()
+                .setLevel(player.getJSONObject("achievements").optInt("bedwars_level", 0))
+                .calculateWLR(
+                    bedwars.optInt("wins_bedwars", 0),
+                    bedwars.optInt("losses_bedwars", 0))
+                .calculateKDR(
+                    bedwars.optInt("kills_bedwars", 0),
+                    bedwars.optInt("deaths_bedwars", 0))
+                .calculateFKDR(
+                    bedwars.optInt("final_kills_bedwars", 0),
+                    bedwars.optInt("final_deaths_bedwars", 0))
+                .setBedsDestroyed(bedwars.optInt("beds_broken_bedwars", 0))
+                .build();
             
-            stats.finalKills = bedwars.optInt("final_kills_bedwars", 0);
-            stats.finalDeaths = bedwars.optInt("final_deaths_bedwars", 0);
-            stats.fkdr = stats.finalDeaths > 0 ? (float) stats.finalKills / stats.finalDeaths : stats.finalKills;
-            
-            stats.bedsDestroyed = bedwars.optInt("beds_broken_bedwars", 0);
-            // We'll calculate a bed efficiency ratio (beds broken / beds lost)
-            stats.bedsLost = bedwars.optInt("beds_lost_bedwars", 0);
-            
-            // Add to player stats map on the main thread
             mc.addScheduledTask(() -> playerStats.put(playerName, stats));
-            
         } catch (JSONException e) {
             System.err.println("Error processing stats for " + playerName + ": " + e.getMessage());
         }
@@ -396,22 +381,6 @@ public class Sentinel extends Module {
         else return "§7"; // Gray for below average
     }
     
-    private String getColorForWins(int wins) {
-        if (wins >= 5000) return "§5"; // Dark Purple
-        else if (wins >= 2000) return "§d"; // Light Purple
-        else if (wins >= 1000) return "§c"; // Red
-        else if (wins >= 500) return "§6"; // Gold
-        else return "§7"; // Gray
-    }
-    
-    private String getColorForFinalKills(int finalKills) {
-        if (finalKills >= 20000) return "§5"; // Dark Purple
-        else if (finalKills >= 10000) return "§d"; // Light Purple
-        else if (finalKills >= 5000) return "§c"; // Red
-        else if (finalKills >= 1000) return "§6"; // Gold
-        else return "§7"; // Gray
-    }
-    
     private String getColorForBeds(int beds) {
         if (beds >= 5000) return "§5"; // Dark Purple
         else if (beds >= 2000) return "§d"; // Light Purple
@@ -421,49 +390,141 @@ public class Sentinel extends Module {
     }
     
     private String getTeamColor(String playerName) {
-        // Defensive null check
-        if (playerName == null) return "";
+        if (playerName == null) return Team.NONE.colorCode;
         
-        EntityPlayer player = mc.theWorld.getPlayerEntityByName(playerName);
-        if (player == null || player.getDisplayName() == null) return "§f"; // Default to white
+        updateTeams();
+        Team team = playerTeams.getOrDefault(playerName, Team.NONE);
+        return team.colorCode + "[" + team.shortName + "] ";
+    }
+
+    private void updateTeams() {
+        if (System.currentTimeMillis() - lastTeamUpdate < TEAM_UPDATE_INTERVAL) return;
+        lastTeamUpdate = System.currentTimeMillis();
+
+        if (mc.theWorld == null || mc.thePlayer == null) return;
+
+        playerTeams.clear();
         
-        String formatted = player.getDisplayName().getFormattedText();
-        String colorCode = "§f"; // Default to white
+        // Get scoreboard
+        net.minecraft.scoreboard.Scoreboard scoreboard = mc.theWorld.getScoreboard();
+        if (scoreboard == null) return;
+
+        // Process all teams
+        for (net.minecraft.scoreboard.ScorePlayerTeam team : scoreboard.getTeams()) {
+            String prefix = team.getColorPrefix();
+            Team bedwarsTeam = getTeamFromPrefix(prefix);
+            
+            for (String playerName : team.getMembershipCollection()) {
+                playerTeams.put(playerName, bedwarsTeam);
+            }
+        }
+    }
+
+    private Team getTeamFromPrefix(String prefix) {
+        if (prefix == null || prefix.isEmpty()) return Team.NONE;
         
-        if (formatted.length() >= 2) {
-            // Extract color code from name
-            for (int i = 0; i < Math.min(formatted.length() - 1, 10); i++) {
-                if (formatted.charAt(i) == '§') {
-                    colorCode = "§" + formatted.charAt(i + 1);
-                    break;
-                }
+        // First try exact match
+        for (Team team : Team.values()) {
+            if (prefix.startsWith(team.colorCode)) {
+                return team;
             }
         }
 
-        // Map color codes to team names
-        return switch (colorCode) {
-            case "§c" -> colorCode + "[R] ";
-            case "§9" -> colorCode + "[B] ";
-            case "§a" -> colorCode + "[G] ";
-            case "§e" -> colorCode + "[Y] ";
-            case "§f" -> colorCode + "[W] ";
-            case "§d" -> colorCode + "[P] ";
-            case "§7" -> colorCode + "[G] ";
-            case "§b" -> colorCode + "[A] ";
-            default -> colorCode;
+        // Fallback to color-only detection
+        return switch (getLastColorCode(prefix)) {
+            case "§c" -> Team.RED;
+            case "§9" -> Team.BLUE;
+            case "§a" -> Team.GREEN;
+            case "§e" -> Team.YELLOW;
+            case "§f" -> Team.WHITE;
+            case "§d" -> Team.PINK;
+            case "§7" -> Team.GRAY;
+            case "§b" -> Team.AQUA;
+            default -> Team.NONE;
         };
+    }
+
+    private String getLastColorCode(String text) {
+        String lastCode = "§f";
+        for (int i = 0; i < text.length() - 1; i++) {
+            if (text.charAt(i) == '§') {
+                lastCode = "§" + text.charAt(i + 1);
+            }
+        }
+        return lastCode;
+    }
+
+    private enum Team {
+        RED("§c", "R"),
+        BLUE("§9", "B"),
+        GREEN("§a", "G"),
+        YELLOW("§e", "Y"),
+        WHITE("§f", "W"),
+        PINK("§d", "P"),
+        GRAY("§7", "S"),
+        AQUA("§b", "A"),
+        NONE("§f", "");
+
+        final String colorCode;
+        final String shortName;
+
+        Team(String colorCode, String shortName) {
+            this.colorCode = colorCode;
+            this.shortName = shortName;
+        }
     }
 
     // Class to store player statistics
     private static class PlayerStats {
-        int level;
-        int wins;
-        int losses;
-        float wlr;
-        int finalKills;
-        int finalDeaths;
-        float fkdr;
-        int bedsDestroyed;
-        int bedsLost; // We'll use this for bed efficiency calculation
+        private final int level;
+        private final float wlr;
+        private final float kdr;
+        private final float fkdr;
+        private final int bedsDestroyed;
+
+        private PlayerStats(Builder builder) {
+            this.level = builder.level;
+            this.wlr = builder.wlr;
+            this.kdr = builder.kdr;
+            this.fkdr = builder.fkdr;
+            this.bedsDestroyed = builder.bedsDestroyed;
+        }
+
+        static class Builder {
+            private int level;
+            private float wlr;
+            private float kdr;
+            private float fkdr;
+            private int bedsDestroyed;
+
+            Builder setLevel(int level) {
+                this.level = level;
+                return this;
+            }
+
+            Builder calculateWLR(int wins, int losses) {
+                this.wlr = losses > 0 ? (float) wins / losses : wins;
+                return this;
+            }
+
+            Builder calculateKDR(int kills, int deaths) {
+                this.kdr = deaths > 0 ? (float) kills / deaths : kills;
+                return this;
+            }
+
+            Builder calculateFKDR(int finalKills, int finalDeaths) {
+                this.fkdr = finalDeaths > 0 ? (float) finalKills / finalDeaths : finalKills;
+                return this;
+            }
+
+            Builder setBedsDestroyed(int beds) {
+                this.bedsDestroyed = beds;
+                return this;
+            }
+
+            PlayerStats build() {
+                return new PlayerStats(this);
+            }
+        }
     }
 }
