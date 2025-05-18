@@ -22,7 +22,6 @@ import java.util.Random;
 
 @SuppressWarnings("unused")
 public class AutoClicker extends Module {
-    // Settings
     public static SliderSetting minCPS;
     public static SliderSetting maxCPS;
     public static SliderSetting jitterAmount;
@@ -30,8 +29,8 @@ public class AutoClicker extends Module {
     public static TickSetting breakBlocks;
     public static TickSetting hitSelect;
     public static TickSetting weaponOnly;
+    public static SliderSetting holdBlockHitDuration;
 
-    // Click timing variables
     private long nextPressTime = 0L;
     private long nextReleaseTime = 0L;
     private long nextMultiplierUpdateTime = 0L;
@@ -42,7 +41,6 @@ public class AutoClicker extends Module {
     private boolean isHoldingBlockBreak = false;
     private boolean isBlockHitActive = false;
 
-    // Random and utility
     private final Random rand = new Random();
     private final TimerUtils timer = new TimerUtils();
     private final int lmb = mc.gameSettings.keyBindAttack.getKeyCode();
@@ -50,7 +48,7 @@ public class AutoClicker extends Module {
 
     public AutoClicker() {
         super("AutoClicker", ModuleCategory.Combat, 0);
-        this.registerSetting(new DescriptionSetting("Click automatically with advanced options"));
+        this.registerSetting(new DescriptionSetting("Click automatically when holding mouse"));
         this.registerSetting(minCPS = new SliderSetting("Min CPS", 9.0D, 1.0D, 20.0D, 0.5D));
         this.registerSetting(maxCPS = new SliderSetting("Max CPS", 12.0D, 1.0D, 20.0D, 0.5D));
         this.registerSetting(jitterAmount = new SliderSetting("Jitter", 0.0D, 0.0D, 3.0D, 0.1D));
@@ -58,6 +56,7 @@ public class AutoClicker extends Module {
         this.registerSetting(breakBlocks = new TickSetting("Break blocks", false));
         this.registerSetting(hitSelect = new TickSetting("Hit Select", false));
         this.registerSetting(weaponOnly = new TickSetting("Weapon Only", false));
+        this.registerSetting(holdBlockHitDuration = new SliderSetting("Block Hit Duration", 80.0D, 40.0D, 200.0D, 5.0D));
     }
 
     @Override
@@ -206,7 +205,8 @@ public class AutoClicker extends Module {
 
         if (isBlockHitActive) {
             long blockHitDuration = System.currentTimeMillis() - blockHitStartTime;
-            if (blockHitDuration >= 20 + rand.nextInt(20)) {
+            int baseDuration = (int) holdBlockHitDuration.getInput();
+            if (blockHitDuration >= baseDuration + rand.nextInt(baseDuration / 2)) {
                 KeyBinding.setKeyBindState(rmb, false);
                 HookUtils.setMouseButtonState(1, false);
                 isBlockHitActive = false;
