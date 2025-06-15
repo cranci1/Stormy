@@ -28,7 +28,7 @@ public class ModuleManager {
       addModule(new ClickAssist());
       addModule(new Reach());
       addModule(new NoHitDelay());
-      addModule(new Backtrack());
+      addModule(new Killaura());
       addModule(new FastPlace());
       addModule(new SafeWalk());
       addModule(new AntiBot());
