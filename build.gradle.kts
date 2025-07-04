@@ -21,9 +21,17 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.28")
     compileOnly("com.github.weave-mc:weave-loader:v0.2.4")
     compileOnly("org.spongepowered:mixin:0.8.5")
+}
 
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
 }
 
 tasks.compileJava {
     options.release.set(17)
+}
+
+tasks.javadoc {
+    options.encoding = "UTF-8"
+    (options as StandardJavadocDocletOptions).charSet = "UTF-8"
 }
